@@ -1,0 +1,30 @@
+[package]
+name = "sequencetoolkit"
+version = "0.1.0"
+authors = ["OKAMURA, Yasunobu <okamura@informationsea.info>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+vcf = "0.4"
+flate2 = "1"
+xlsxwriter = "0.3"
+clap = "2"
+csv = "1"
+failure = "0.1"
+lazy_static = "1"
+nom = "5"
+itertools = "0.9"
+rand = "0.7"
+autocompress = "0.1"
+bgzip = "0.1"
+
+bio = "0.30"
+bio-types = "0.6"
+pretty_env_logger = "0.4"
+log = "0.4"
+serde_derive = "1"
+serde = "1"
+serde_json = "1"
+bincode = "1.2.1"
