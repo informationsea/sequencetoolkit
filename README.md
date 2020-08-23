@@ -1,5 +1,7 @@
 sequencetoolkit
 ===============
+[![Build](https://github.com/informationsea/sequencetoolkit/workflows/Rust/badge.svg)](https://github.com/informationsea/sequencetoolkit/actions)
+[![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/informationsea/sequencetoolkit)](https://hub.docker.com/r/informationsea/sequencetoolkit)
 
 Toolkit for Genome Sequence Analysis
 
