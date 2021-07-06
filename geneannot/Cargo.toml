@@ -1,0 +1,22 @@
+[package]
+name = "geneannot"
+version = "0.1.0"
+authors = ["OKAMURA, Yasunobu <okamura@informationsea.info>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "2"
+sequencetoolkit_common = {path = "../sequencetoolkit_common"}
+flate2 = "1"
+log = "0.4"
+nom = "5"
+bio = "0.32"
+serde = "1"
+serde_json = "1"
+failure = "0.1"
+csv = "1"
+bincode = "^1.2.1"
+autocompress = "0.1"
+vcf = "0.5"

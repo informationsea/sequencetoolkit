@@ -1,0 +1,23 @@
+[package]
+name = "vcfutils"
+version = "0.1.0"
+authors = ["OKAMURA, Yasunobu <okamura@informationsea.info>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "2"
+sequencetoolkit_common = {path = "../sequencetoolkit_common"}
+bio = "0.32"
+bio-types = "0.7"
+failure = "0.1"
+autocompress = "0.1"
+vcf = "0.5"
+csv = "1"
+xlsxwriter = "0.3"
+nom = "5"
+itertools = "0.9"
+serde = "1"
+rand = "0.7"
+itoa = "^0.4.6"
