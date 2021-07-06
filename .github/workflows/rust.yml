@@ -56,12 +56,10 @@ jobs:
     - name: Install LLVM
       if: ${{ matrix.config.os == 'windows-latest' }}
       run: choco install llvm
-    - uses: msys2/setup-msys2@v2
-      name: Install LLVM MSYS2
+    - name: Setup LLVM path
       if: ${{ matrix.config.os == 'windows-latest' }}
-      with:
-        update: true
-        install: mingw32/mingw-w64-i686-clang mingw64/mingw-w64-x86_64-clang
+      run: |
+        echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" > $env:GITHUB_ENV
     - name: Install musl tools
       if: ${{ matrix.config.target == 'x86_64-unknown-linux-musl' }}
       run: sudo apt-get install musl-tools musl-dev
