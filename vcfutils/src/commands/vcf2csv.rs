@@ -77,6 +77,20 @@ impl Command for VCF2CSV {
                     .takes_value(true)
                     .multiple(true),
             )
+            .arg(
+                Arg::with_name("group-name")
+                    .short("g")
+                    .long("group-name")
+                    .takes_value(true)
+                    .help("add Group Name column and fill with a value"),
+            )
+            .arg(
+                Arg::with_name("replace-sample-name")
+                    .short("r")
+                    .help("Replace sample name")
+                    .takes_value(true)
+                    .multiple(true),
+            )
     }
 
     fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
@@ -115,7 +129,13 @@ impl Command for VCF2CSV {
         };
         let config = create_config(&vcf_reader.header(), matches)?;
         let header_contents = create_header_line(&vcf_reader.header(), &config);
-        vcf2table(&mut vcf_reader, &header_contents, &config, &mut *writer)?;
+        vcf2table(
+            &mut vcf_reader,
+            &header_contents,
+            &config,
+            true,
+            &mut *writer,
+        )?;
         Ok(())
     }
 }
@@ -182,6 +202,12 @@ pub fn create_config(
                     })
                     .collect()
             }),
+        replace_sample_name: matches
+            .values_of("replace-sample-name")
+            .map(|x| x.map(|y| y.as_bytes().to_vec()).collect()),
+        group_name: matches
+            .value_of("group-name")
+            .map(|x| x.as_bytes().to_vec()),
     })
 }
 
@@ -199,7 +225,13 @@ fn run_xlsx_mode<R: BufRead>(
     let config = create_config(&vcf_reader.header(), matches)?;
     let header_contents = create_header_line(&vcf_reader.header(), &config);
     vcf2table_set_data_type(&header_contents, &mut writer)?;
-    let row = vcf2table(&mut vcf_reader, &header_contents, &config, &mut writer)?;
+    let row = vcf2table(
+        &mut vcf_reader,
+        &header_contents,
+        &config,
+        true,
+        &mut writer,
+    )?;
     sheet.autofilter(0, 0, row, (header_contents.len() - 1) as u16)?;
     sheet.freeze_panes(1, 0);
     workbook.close()?;
@@ -259,7 +291,9 @@ mod test {
                 decoded_genotype: true,
                 canonical_list: None,
                 info_list: vec![b"AC".to_vec(),],
-                format_list: vec![b"AD".to_vec()]
+                format_list: vec![b"AD".to_vec()],
+                replace_sample_name: None,
+                group_name: None,
             }
         );
         Ok(())

@@ -18,6 +18,8 @@ pub struct VCF2CSVConfig {
     pub canonical_list: Option<HashSet<U8Vec>>,
     pub info_list: Vec<U8Vec>,
     pub format_list: Vec<U8Vec>,
+    pub replace_sample_name: Option<Vec<U8Vec>>,
+    pub group_name: Option<U8Vec>,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
@@ -41,6 +43,7 @@ impl SnpEffImpact {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub enum HeaderType {
+    GroupName,
     VcfLine,
     AltIndex,
     GeneChange,
@@ -58,7 +61,16 @@ pub enum HeaderType {
     SnpEff,
     SnpEffImpact(SnpEffImpact),
     Info(U8Vec, vcf::Number, vcf::ValueType, i32, String),
-    Genotype(U8Vec, U8Vec, vcf::Number, vcf::ValueType, i32, String),
+    // SampleName, FormatID, Number, Type, Index, Description, ReplacedSampleName
+    Genotype(
+        U8Vec,
+        U8Vec,
+        vcf::Number,
+        vcf::ValueType,
+        i32,
+        String,
+        Option<U8Vec>,
+    ),
 }
 
 fn add_number_suffix(
@@ -92,6 +104,7 @@ fn add_number_suffix(
 impl ToString for HeaderType {
     fn to_string(&self) -> String {
         match self {
+            HeaderType::GroupName => "Group Name".to_string(),
             HeaderType::VcfLine => "#".to_string(),
             HeaderType::AltIndex => "alt #".to_string(),
             HeaderType::GeneChange => "Gene change".to_string(),
@@ -111,12 +124,20 @@ impl ToString for HeaderType {
                 add_number_suffix(&mut s, num, *index).unwrap();
                 s
             }
-            HeaderType::Genotype(x, y, num, _, index, _) => {
-                let mut s = format!(
-                    "{}__{}",
-                    str::from_utf8(x).unwrap(),
-                    str::from_utf8(y).unwrap()
-                );
+            HeaderType::Genotype(x, y, num, _, index, _, replace_sample_name) => {
+                let mut s = if let Some(replace_sample_name) = replace_sample_name {
+                    format!(
+                        "{}__{}",
+                        str::from_utf8(replace_sample_name).unwrap(),
+                        str::from_utf8(y).unwrap()
+                    )
+                } else {
+                    format!(
+                        "{}__{}",
+                        str::from_utf8(x).unwrap(),
+                        str::from_utf8(y).unwrap()
+                    )
+                };
                 add_number_suffix(&mut s, num, *index).unwrap();
                 s
             }
@@ -137,6 +158,10 @@ pub fn create_header_line(header: &VCFHeader, config: &VCF2CSVConfig) -> Vec<Hea
         HeaderType::QUAL,
         HeaderType::FILTER,
     ];
+
+    if config.group_name.is_some() {
+        header_items.insert(0, HeaderType::GroupName);
+    }
 
     if config.split_multi_allelic {
         header_items.insert(1, HeaderType::AltIndex);
@@ -200,7 +225,7 @@ pub fn create_header_line(header: &VCFHeader, config: &VCF2CSVConfig) -> Vec<Hea
         }
     }
 
-    for one_sample in header.samples() {
+    for (sample_index, one_sample) in header.samples().iter().enumerate() {
         for one_format in &config.format_list {
             let format = header.format(one_format).unwrap();
             match format.number {
@@ -213,6 +238,11 @@ pub fn create_header_line(header: &VCFHeader, config: &VCF2CSVConfig) -> Vec<Hea
                             format.value_type.clone(),
                             i,
                             str::from_utf8(format.description).unwrap().to_string(),
+                            config
+                                .replace_sample_name
+                                .as_ref()
+                                .map(|x| x.get(sample_index).map(|y| y.to_vec()))
+                                .flatten(),
                         ));
                     }
                 }
@@ -224,6 +254,11 @@ pub fn create_header_line(header: &VCFHeader, config: &VCF2CSVConfig) -> Vec<Hea
                         format.value_type.clone(),
                         0,
                         str::from_utf8(format.description).unwrap().to_string(),
+                        config
+                            .replace_sample_name
+                            .as_ref()
+                            .map(|x| x.get(sample_index).map(|y| y.to_vec()))
+                            .flatten(),
                     ));
                     header_items.push(HeaderType::Genotype(
                         one_sample.to_vec(),
@@ -232,6 +267,11 @@ pub fn create_header_line(header: &VCFHeader, config: &VCF2CSVConfig) -> Vec<Hea
                         format.value_type.clone(),
                         1,
                         str::from_utf8(format.description).unwrap().to_string(),
+                        config
+                            .replace_sample_name
+                            .as_ref()
+                            .map(|x| x.get(sample_index).map(|y| y.to_vec()))
+                            .flatten(),
                     ));
                 }
                 _ => {
@@ -242,6 +282,11 @@ pub fn create_header_line(header: &VCFHeader, config: &VCF2CSVConfig) -> Vec<Hea
                         format.value_type.clone(),
                         0,
                         str::from_utf8(format.description).unwrap().to_string(),
+                        config
+                            .replace_sample_name
+                            .as_ref()
+                            .map(|x| x.get(sample_index).map(|y| y.to_vec()))
+                            .flatten(),
                     ));
                 }
             }
@@ -506,7 +551,7 @@ pub fn vcf2table_set_data_type(
                 vcf::ValueType::Float | vcf::ValueType::Integer => XlsxDataType::Number,
                 _ => XlsxDataType::String,
             },
-            HeaderType::Genotype(_, _, _, t, _, _) => match t {
+            HeaderType::Genotype(_, _, _, t, _, _, _) => match t {
                 vcf::ValueType::Float | vcf::ValueType::Integer => XlsxDataType::Number,
                 _ => XlsxDataType::String,
             },
@@ -518,7 +563,7 @@ pub fn vcf2table_set_data_type(
         .map(|x| match x {
             HeaderType::POS | HeaderType::QUAL | HeaderType::VcfLine => "".to_string(),
             HeaderType::Info(_, _, _, _, comment) => comment.to_string(),
-            HeaderType::Genotype(_, _, _, _, _, comment) => comment.to_string(),
+            HeaderType::Genotype(_, _, _, _, _, comment, _) => comment.to_string(),
             HeaderType::SnpEffImpact(impact) => {
                 format!("{} impact (See \"Effect prediction details\" at http://snpeff.sourceforge.net/SnpEff_manual.html)", impact.to_str())
             }
@@ -534,6 +579,7 @@ pub fn vcf2table_set_data_type(
 }
 
 fn setup_row(
+    group_name: Option<&U8Vec>,
     header_contents: &[HeaderType],
     record: &VCFRecord,
     row: &mut Vec<U8Vec>,
@@ -545,6 +591,11 @@ fn setup_row(
     for (header, column) in header_contents.iter().zip(row.iter_mut()) {
         column.clear();
         match header {
+            HeaderType::GroupName => {
+                if let Some(g) = group_name {
+                    column.extend_from_slice(g);
+                }
+            }
             HeaderType::VcfLine => {
                 write!(column, "{}", index)?;
             }
@@ -610,7 +661,7 @@ fn setup_row(
                     }
                 }
             }
-            HeaderType::Genotype(sample_name, key, number, _, index, _) => {
+            HeaderType::Genotype(sample_name, key, number, _, index, _, _) => {
                 if let Some(values) = record.genotype(sample_name, key) {
                     if translate_genotype && (key == b"GT" || key == b"PGT") {
                         write_value_for_decoded_genotype(column, record, values)?;
@@ -635,11 +686,14 @@ pub fn vcf2table<R: BufRead, W: TableWriter>(
     vcf_reader: &mut VCFReader<R>,
     header_contents: &[HeaderType],
     config: &VCF2CSVConfig,
+    write_header: bool,
     mut writer: W,
 ) -> Result<u32, VCFUtilsError> {
     let header_string: Vec<_> = header_contents.iter().map(|x| x.to_string()).collect();
     writer.set_header(&header_string);
-    writer.write_header()?;
+    if write_header {
+        writer.write_header()?;
+    }
     let mut row: Vec<U8Vec> = header_contents.iter().map(|_| Vec::new()).collect();
 
     let mut index: u32 = 0;
@@ -651,6 +705,7 @@ pub fn vcf2table<R: BufRead, W: TableWriter>(
         if config.split_multi_allelic {
             for (alt_index, _) in record.alternative.iter().enumerate() {
                 setup_row(
+                    config.group_name.as_ref(),
                     header_contents,
                     &record,
                     &mut row,
@@ -663,6 +718,7 @@ pub fn vcf2table<R: BufRead, W: TableWriter>(
             }
         } else {
             setup_row(
+                config.group_name.as_ref(),
                 header_contents,
                 &record,
                 &mut row,
@@ -751,6 +807,8 @@ mod test {
                 b"DP".to_vec(),
             ],
             format_list: vec![b"AD".to_vec(), b"DP".to_vec(), b"GT".to_vec()],
+            replace_sample_name: None,
+            group_name: None,
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
@@ -760,6 +818,7 @@ mod test {
             &mut vcf_reader,
             &header_contents,
             &config,
+            true,
             &mut tablewriter::CSVWriter::new(&mut write_bytes),
         )?;
         std::fs::File::create("../target/simple1-expected-multiallelic-split.csv")?
@@ -787,6 +846,8 @@ mod test {
                 b"FLAG".to_vec(),
             ],
             format_list: vec![b"AD".to_vec(), b"DP".to_vec(), b"GT".to_vec()],
+            replace_sample_name: None,
+            group_name: None,
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
@@ -796,6 +857,7 @@ mod test {
             &mut vcf_reader,
             &header_contents,
             &config,
+            true,
             &mut tablewriter::CSVWriter::new(&mut write_bytes),
         )?;
         std::fs::File::create("../target/split-snpeff.csv")?.write_all(&write_bytes)?;
@@ -826,6 +888,8 @@ mod test {
                 b"ANN".to_vec(),
             ],
             format_list: vec![b"AD".to_vec(), b"DP".to_vec(), b"GT".to_vec()],
+            replace_sample_name: None,
+            group_name: None,
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
@@ -835,6 +899,7 @@ mod test {
             &mut vcf_reader,
             &header_contents,
             &config,
+            true,
             &mut tablewriter::CSVWriter::new(&mut write_bytes),
         )?;
         std::fs::File::create("../target/split-snpeff-canonical.csv")?.write_all(&write_bytes)?;
@@ -859,6 +924,8 @@ mod test {
                 b"DP".to_vec(),
             ],
             format_list: vec![b"AD".to_vec(), b"DP".to_vec(), b"GT".to_vec()],
+            replace_sample_name: None,
+            group_name: None,
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
@@ -868,6 +935,7 @@ mod test {
             &mut vcf_reader,
             &header_contents,
             &config,
+            true,
             &mut tablewriter::CSVWriter::new(&mut write_bytes),
         )?;
         assert_eq!(
@@ -891,6 +959,8 @@ mod test {
                 b"DP".to_vec(),
             ],
             format_list: vec![b"GT".to_vec(), b"AD".to_vec(), b"DP".to_vec()],
+            replace_sample_name: None,
+            group_name: None,
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
@@ -899,7 +969,13 @@ mod test {
         let mut writer = tablewriter::XlsxSheetWriter::new(&mut sheet);
         let header_contents = create_header_line(&vcf_reader.header(), &config);
         vcf2table_set_data_type(&header_contents, &mut writer)?;
-        let row = vcf2table(&mut vcf_reader, &header_contents, &config, &mut writer)?;
+        let row = vcf2table(
+            &mut vcf_reader,
+            &header_contents,
+            &config,
+            true,
+            &mut writer,
+        )?;
         sheet.autofilter(0, 0, row, (header_contents.len() - 1) as u16)?;
         workbook.close()?;
         Ok(())
@@ -919,6 +995,8 @@ mod test {
                 b"DP".to_vec(),
             ],
             format_list: vec![b"GT".to_vec(), b"AD".to_vec(), b"DP".to_vec()],
+            replace_sample_name: None,
+            group_name: None,
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
@@ -927,7 +1005,49 @@ mod test {
         let mut writer = tablewriter::XlsxSheetWriter::new(&mut sheet);
         let header_contents = create_header_line(&vcf_reader.header(), &config);
         vcf2table_set_data_type(&header_contents, &mut writer)?;
-        let row = vcf2table(&mut vcf_reader, &header_contents, &config, &mut writer)?;
+        let row = vcf2table(
+            &mut vcf_reader,
+            &header_contents,
+            &config,
+            true,
+            &mut writer,
+        )?;
+        sheet.autofilter(0, 0, row, (header_contents.len() - 1) as u16)?;
+        workbook.close()?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_vcf2table_xlsx_split_multi_with_group_name() -> Result<(), VCFUtilsError> {
+        let vcf_data = include_bytes!("../../testfiles/simple1.vcf");
+        let config = VCF2CSVConfig {
+            split_multi_allelic: true,
+            decoded_genotype: false,
+            canonical_list: None,
+            info_list: vec![
+                b"AC".to_vec(),
+                b"AN".to_vec(),
+                b"AF".to_vec(),
+                b"DP".to_vec(),
+            ],
+            format_list: vec![b"GT".to_vec(), b"AD".to_vec(), b"DP".to_vec()],
+            replace_sample_name: Some(vec![b"SAMPLE1".to_vec()]),
+            group_name: Some(b"GROUP".to_vec()),
+        };
+        let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
+        let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
+        let workbook = xlsxwriter::Workbook::new("../target/table-split-multi-with-group.xlsx");
+        let mut sheet = workbook.add_worksheet(None)?;
+        let mut writer = tablewriter::XlsxSheetWriter::new(&mut sheet);
+        let header_contents = create_header_line(&vcf_reader.header(), &config);
+        vcf2table_set_data_type(&header_contents, &mut writer)?;
+        let row = vcf2table(
+            &mut vcf_reader,
+            &header_contents,
+            &config,
+            true,
+            &mut writer,
+        )?;
         sheet.autofilter(0, 0, row, (header_contents.len() - 1) as u16)?;
         workbook.close()?;
         Ok(())

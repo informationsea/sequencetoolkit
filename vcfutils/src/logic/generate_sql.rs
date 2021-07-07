@@ -22,6 +22,7 @@ pub fn generate_sql(
                     "    {} {}",
                     String::from_utf8(clean_name(x.to_string().as_bytes())).unwrap(),
                     match x {
+                        HeaderType::GroupName => "TEXT",
                         HeaderType::VcfLine => "",
                         HeaderType::AltIndex => "",
                         HeaderType::GeneChange => "TEXT",
@@ -76,6 +77,8 @@ mod test {
             canonical_list: None,
             info_list: vec![b"AC".to_vec(), b"AN".to_vec(), b"AF".to_vec()],
             format_list: vec![b"GT".to_vec(), b"AD".to_vec(), b"DP".to_vec()],
+            replace_sample_name: None,
+            group_name: None,
         };
         let vcf_reader = vcf::VCFReader::new(&vcf_data[..])?;
         assert_eq!(
