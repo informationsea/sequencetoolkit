@@ -2,7 +2,7 @@ name: Rust
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, workflow-test ]
     tags: [ 'v*' ]
   pull_request:
     branches: [ master ]
@@ -56,6 +56,10 @@ jobs:
     - name: Install LLVM
       if: ${{ matrix.config.os == 'windows-latest' }}
       run: choco install llvm
+    - name: Setup LLVM path
+      if: ${{ matrix.config.os == 'windows-latest' }}
+      run: |
+        echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" > $env:GITHUB_ENV
     - name: Install musl tools
       if: ${{ matrix.config.target == 'x86_64-unknown-linux-musl' }}
       run: sudo apt-get install musl-tools musl-dev
