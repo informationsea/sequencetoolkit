@@ -19,7 +19,7 @@ pub struct VCF2CSVConfig {
     pub info_list: Vec<U8Vec>,
     pub format_list: Vec<U8Vec>,
     pub replace_sample_name: Option<Vec<U8Vec>>,
-    pub group_name: Option<U8Vec>,
+    pub group_names: Option<Vec<U8Vec>>,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
@@ -61,7 +61,7 @@ pub enum HeaderType {
     SnpEff,
     SnpEffImpact(SnpEffImpact),
     Info(U8Vec, vcf::Number, vcf::ValueType, i32, String),
-    // SampleName, FormatID, Number, Type, Index, Description, ReplacedSampleName
+    // Genotype: SampleName, FormatID, Number, Type, Index, Description, ReplacedSampleName
     Genotype(
         U8Vec,
         U8Vec,
@@ -71,6 +71,7 @@ pub enum HeaderType {
         String,
         Option<U8Vec>,
     ),
+    Empty,
 }
 
 fn add_number_suffix(
@@ -143,6 +144,7 @@ impl ToString for HeaderType {
             }
             HeaderType::SnpEffImpact(impact) => format!("GeneImpact__{}", impact.to_str()),
             HeaderType::SnpEff => "SnpEff".to_string(),
+            HeaderType::Empty => "".to_string(),
         }
     }
 }
@@ -159,7 +161,7 @@ pub fn create_header_line(header: &VCFHeader, config: &VCF2CSVConfig) -> Vec<Hea
         HeaderType::FILTER,
     ];
 
-    if config.group_name.is_some() {
+    if config.group_names.is_some() {
         header_items.insert(0, HeaderType::GroupName);
     }
 
@@ -676,6 +678,7 @@ fn setup_row(
             HeaderType::SnpEff => {
                 write_snpeff_all(record, column, alt_index)?;
             }
+            HeaderType::Empty => {}
         }
     }
 
@@ -686,6 +689,7 @@ pub fn vcf2table<R: BufRead, W: TableWriter>(
     vcf_reader: &mut VCFReader<R>,
     header_contents: &[HeaderType],
     config: &VCF2CSVConfig,
+    group_name: Option<&U8Vec>,
     write_header: bool,
     mut writer: W,
 ) -> Result<u32, VCFUtilsError> {
@@ -705,7 +709,7 @@ pub fn vcf2table<R: BufRead, W: TableWriter>(
         if config.split_multi_allelic {
             for (alt_index, _) in record.alternative.iter().enumerate() {
                 setup_row(
-                    config.group_name.as_ref(),
+                    group_name,
                     header_contents,
                     &record,
                     &mut row,
@@ -718,7 +722,7 @@ pub fn vcf2table<R: BufRead, W: TableWriter>(
             }
         } else {
             setup_row(
-                config.group_name.as_ref(),
+                group_name,
                 header_contents,
                 &record,
                 &mut row,
@@ -732,6 +736,58 @@ pub fn vcf2table<R: BufRead, W: TableWriter>(
     }
 
     Ok(index)
+}
+
+pub fn merge_header_contents(original: &[HeaderType], new: &[HeaderType]) -> Vec<HeaderType> {
+    let mut merged = Vec::new();
+
+    for one in original {
+        if let Some(found) = new
+            .iter()
+            .filter(|x| match *x {
+                HeaderType::Genotype(
+                    x_sample_name,
+                    x_format_id,
+                    _,
+                    _,
+                    x_index,
+                    _,
+                    x_replace_sample_name,
+                ) => {
+                    if let HeaderType::Genotype(
+                        one_sample_name,
+                        one_format_id,
+                        _,
+                        _,
+                        one_index,
+                        _,
+                        one_replace_sample_name,
+                    ) = one
+                    {
+                        if x_format_id != one_format_id || x_index != one_index {
+                            return false;
+                        }
+                        if let Some(x_replace_sample_name) = x_replace_sample_name {
+                            if let Some(one_replace_sample_name) = one_replace_sample_name {
+                                return x_replace_sample_name == one_replace_sample_name;
+                            }
+                        }
+                        one_sample_name == x_sample_name
+                    } else {
+                        false
+                    }
+                }
+                y => y == one,
+            })
+            .next()
+        {
+            merged.push(found.clone());
+        } else {
+            merged.push(HeaderType::Empty);
+        }
+    }
+
+    merged
 }
 
 #[cfg(test)]
@@ -808,7 +864,7 @@ mod test {
             ],
             format_list: vec![b"AD".to_vec(), b"DP".to_vec(), b"GT".to_vec()],
             replace_sample_name: None,
-            group_name: None,
+            group_names: None,
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
@@ -818,6 +874,7 @@ mod test {
             &mut vcf_reader,
             &header_contents,
             &config,
+            None,
             true,
             &mut tablewriter::CSVWriter::new(&mut write_bytes),
         )?;
@@ -847,7 +904,7 @@ mod test {
             ],
             format_list: vec![b"AD".to_vec(), b"DP".to_vec(), b"GT".to_vec()],
             replace_sample_name: None,
-            group_name: None,
+            group_names: None,
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
@@ -857,6 +914,7 @@ mod test {
             &mut vcf_reader,
             &header_contents,
             &config,
+            None,
             true,
             &mut tablewriter::CSVWriter::new(&mut write_bytes),
         )?;
@@ -889,7 +947,7 @@ mod test {
             ],
             format_list: vec![b"AD".to_vec(), b"DP".to_vec(), b"GT".to_vec()],
             replace_sample_name: None,
-            group_name: None,
+            group_names: None,
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
@@ -899,6 +957,7 @@ mod test {
             &mut vcf_reader,
             &header_contents,
             &config,
+            None,
             true,
             &mut tablewriter::CSVWriter::new(&mut write_bytes),
         )?;
@@ -925,7 +984,7 @@ mod test {
             ],
             format_list: vec![b"AD".to_vec(), b"DP".to_vec(), b"GT".to_vec()],
             replace_sample_name: None,
-            group_name: None,
+            group_names: None,
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
@@ -935,6 +994,7 @@ mod test {
             &mut vcf_reader,
             &header_contents,
             &config,
+            None,
             true,
             &mut tablewriter::CSVWriter::new(&mut write_bytes),
         )?;
@@ -960,7 +1020,7 @@ mod test {
             ],
             format_list: vec![b"GT".to_vec(), b"AD".to_vec(), b"DP".to_vec()],
             replace_sample_name: None,
-            group_name: None,
+            group_names: None,
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
@@ -973,6 +1033,7 @@ mod test {
             &mut vcf_reader,
             &header_contents,
             &config,
+            None,
             true,
             &mut writer,
         )?;
@@ -996,7 +1057,7 @@ mod test {
             ],
             format_list: vec![b"GT".to_vec(), b"AD".to_vec(), b"DP".to_vec()],
             replace_sample_name: None,
-            group_name: None,
+            group_names: None,
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
@@ -1009,6 +1070,7 @@ mod test {
             &mut vcf_reader,
             &header_contents,
             &config,
+            None,
             true,
             &mut writer,
         )?;
@@ -1032,7 +1094,7 @@ mod test {
             ],
             format_list: vec![b"GT".to_vec(), b"AD".to_vec(), b"DP".to_vec()],
             replace_sample_name: Some(vec![b"SAMPLE1".to_vec()]),
-            group_name: Some(b"GROUP".to_vec()),
+            group_names: Some(vec![b"GROUP".to_vec()]),
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
@@ -1045,6 +1107,7 @@ mod test {
             &mut vcf_reader,
             &header_contents,
             &config,
+            None,
             true,
             &mut writer,
         )?;

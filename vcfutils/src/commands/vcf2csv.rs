@@ -1,7 +1,7 @@
 use super::Command;
-use crate::error::VCFUtilsError;
+use crate::error::{VCFUtilsError, VCFUtilsErrorKind};
 use crate::logic::vcf2table::{
-    create_header_line, vcf2table, vcf2table_set_data_type, VCF2CSVConfig,
+    create_header_line, merge_header_contents, vcf2table, vcf2table_set_data_type, VCF2CSVConfig,
 };
 use crate::utils;
 use crate::utils::tablewriter::{CSVWriter, TSVWriter, TableWriter, XlsxSheetWriter};
@@ -9,7 +9,7 @@ use clap::{App, Arg, ArgMatches};
 use std::boxed::Box;
 use std::collections::HashSet;
 use std::io::{BufRead, BufReader};
-use vcf::{VCFHeader, VCFReader};
+use vcf::VCFHeader;
 
 pub struct VCF2CSV;
 
@@ -23,6 +23,7 @@ impl Command for VCF2CSV {
                 Arg::with_name("input")
                     .index(1)
                     .takes_value(true)
+                    .multiple(true)
                     .help("Input VCF file"),
             )
             .arg(
@@ -78,10 +79,11 @@ impl Command for VCF2CSV {
                     .multiple(true),
             )
             .arg(
-                Arg::with_name("group-name")
+                Arg::with_name("group-names")
                     .short("g")
-                    .long("group-name")
+                    .long("group-names")
                     .takes_value(true)
+                    .multiple(true)
                     .help("add Group Name column and fill with a value"),
             )
             .arg(
@@ -114,6 +116,15 @@ impl Command for VCF2CSV {
             _ => unreachable!(),
         };
 
+        let vcf_files: Vec<_> = matches
+            .values_of("input")
+            .map(|x| x.collect())
+            .unwrap_or_else(|| vec![]);
+
+        if output_type == "xlsx" {
+            return Ok(run_xlsx_mode(&vcf_files, matches)?);
+        }
+
         let mut vcf_reader = utils::open_vcf_from_path(matches.value_of("input"))?;
         let mut writer: Box<dyn TableWriter> = match output_type {
             "csv" => Box::new(CSVWriter::new(autocompress::create_or_stdout(
@@ -122,20 +133,37 @@ impl Command for VCF2CSV {
             "tsv" => Box::new(TSVWriter::new(autocompress::create_or_stdout(
                 matches.value_of("output"),
             )?)),
-            "xlsx" => {
-                return Ok(run_xlsx_mode(vcf_reader, matches)?);
-            }
             _ => unreachable!(),
         };
         let config = create_config(&vcf_reader.header(), matches)?;
         let header_contents = create_header_line(&vcf_reader.header(), &config);
+
         vcf2table(
             &mut vcf_reader,
             &header_contents,
             &config,
+            config.group_names.as_ref().map(|x| x.get(0)).flatten(),
             true,
             &mut *writer,
         )?;
+
+        if vcf_files.len() > 1 {
+            for (i, one_vcf_name) in vcf_files[1..].iter().enumerate() {
+                let mut vcf_reader = utils::open_vcf_from_path(Some(one_vcf_name))?;
+                let config = create_config(&vcf_reader.header(), matches)?;
+                let new_header_contents = create_header_line(&vcf_reader.header(), &config);
+                let merged_header_contents =
+                    merge_header_contents(&header_contents, &new_header_contents);
+                vcf2table(
+                    &mut vcf_reader,
+                    &merged_header_contents,
+                    &config,
+                    config.group_names.as_ref().map(|x| x.get(i + 1)).flatten(),
+                    false,
+                    &mut writer,
+                )?;
+            }
+        }
         Ok(())
     }
 }
@@ -165,6 +193,32 @@ pub fn create_config(
     } else {
         None
     };
+
+    let vcf_files: Vec<_> = matches
+        .values_of("input")
+        .map(|x| x.collect())
+        .unwrap_or_else(|| vec![]);
+
+    if vcf_files.len() > 1 {
+        if !matches.is_present("replace-sample-name") {
+            log::error!("--replace-sample-name option is required for multi VCF inputs");
+            return Err(VCFUtilsErrorKind::OtherError(
+                "--replace-sample-name option is required for multi VCF inputs",
+            )
+            .into());
+        }
+    }
+
+    let group_names = matches
+        .values_of("group-names")
+        .map(|x| x.map(|y| y.as_bytes().to_vec()).collect())
+        .or_else(|| {
+            if vcf_files.len() > 1 {
+                Some(vcf_files.iter().map(|y| y.as_bytes().to_vec()).collect())
+            } else {
+                None
+            }
+        });
 
     Ok(VCF2CSVConfig {
         split_multi_allelic: matches.is_present("split-multi-allelic"),
@@ -205,33 +259,53 @@ pub fn create_config(
         replace_sample_name: matches
             .values_of("replace-sample-name")
             .map(|x| x.map(|y| y.as_bytes().to_vec()).collect()),
-        group_name: matches
-            .value_of("group-name")
-            .map(|x| x.as_bytes().to_vec()),
+        group_names,
     })
 }
 
-fn run_xlsx_mode<R: BufRead>(
-    mut vcf_reader: VCFReader<R>,
-    matches: &ArgMatches<'static>,
-) -> Result<(), VCFUtilsError> {
+fn run_xlsx_mode(vcf_inputs: &[&str], matches: &ArgMatches<'static>) -> Result<(), VCFUtilsError> {
     let workbook = xlsxwriter::Workbook::new(
         matches
             .value_of("output")
             .expect("Output path is required for xlsx output mode"),
     );
+
+    let mut first_vcf_reader = utils::open_vcf_from_path(vcf_inputs.get(0).map(|x| *x))?;
+
     let mut sheet = workbook.add_worksheet(None)?;
     let mut writer = XlsxSheetWriter::new(&mut sheet);
-    let config = create_config(&vcf_reader.header(), matches)?;
-    let header_contents = create_header_line(&vcf_reader.header(), &config);
+    let config = create_config(&first_vcf_reader.header(), matches)?;
+    let header_contents = create_header_line(&first_vcf_reader.header(), &config);
     vcf2table_set_data_type(&header_contents, &mut writer)?;
-    let row = vcf2table(
-        &mut vcf_reader,
+
+    let mut row = vcf2table(
+        &mut first_vcf_reader,
         &header_contents,
         &config,
+        config.group_names.as_ref().map(|x| x.get(0)).flatten(),
         true,
         &mut writer,
     )?;
+
+    if vcf_inputs.len() > 1 {
+        for (i, one_vcf_name) in vcf_inputs[1..].iter().enumerate() {
+            let mut vcf_reader = utils::open_vcf_from_path(Some(one_vcf_name))?;
+            let config = create_config(&vcf_reader.header(), matches)?;
+            let new_header_contents = create_header_line(&vcf_reader.header(), &config);
+            let merged_header_contents =
+                merge_header_contents(&header_contents, &new_header_contents);
+            vcf2table_set_data_type(&merged_header_contents, &mut writer)?;
+            let additional_row = vcf2table(
+                &mut vcf_reader,
+                &merged_header_contents,
+                &config,
+                config.group_names.as_ref().map(|x| x.get(i + 1)).flatten(),
+                true,
+                &mut writer,
+            )?;
+            row += additional_row;
+        }
+    }
     sheet.autofilter(0, 0, row, (header_contents.len() - 1) as u16)?;
     sheet.freeze_panes(1, 0);
     workbook.close()?;
@@ -242,6 +316,7 @@ fn run_xlsx_mode<R: BufRead>(
 mod test {
     use super::*;
     use crate::error::VCFUtilsError;
+    use vcf::VCFReader;
     #[test]
     fn test_create_config() -> Result<(), VCFUtilsError> {
         let vcf_data = include_bytes!("../../testfiles/simple1.vcf");
@@ -293,7 +368,7 @@ mod test {
                 info_list: vec![b"AC".to_vec(),],
                 format_list: vec![b"AD".to_vec()],
                 replace_sample_name: None,
-                group_name: None,
+                group_names: None,
             }
         );
         Ok(())

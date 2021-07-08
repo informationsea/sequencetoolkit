@@ -45,6 +45,7 @@ pub fn generate_sql(
                         },
                         HeaderType::SnpEffImpact(_) => "TEXT",
                         HeaderType::SnpEff => "TEXT",
+                        HeaderType::Empty => "TEXT",
                     }
                 )
             }),
@@ -78,7 +79,7 @@ mod test {
             info_list: vec![b"AC".to_vec(), b"AN".to_vec(), b"AF".to_vec()],
             format_list: vec![b"GT".to_vec(), b"AD".to_vec(), b"DP".to_vec()],
             replace_sample_name: None,
-            group_name: None,
+            group_names: None,
         };
         let vcf_reader = vcf::VCFReader::new(&vcf_data[..])?;
         assert_eq!(

@@ -1303,6 +1303,7 @@ dependencies = [
  "failure",
  "itertools",
  "itoa",
+ "log",
  "nom",
  "rand",
  "sequencetoolkit_common",
