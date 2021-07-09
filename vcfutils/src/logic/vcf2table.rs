@@ -777,6 +777,13 @@ pub fn merge_header_contents(original: &[HeaderType], new: &[HeaderType]) -> Vec
                         false
                     }
                 }
+                HeaderType::Info(x_id, _, _, x_index, _) => {
+                    if let HeaderType::Info(one_id, _, _, one_index, _) = one {
+                        one_id == x_id && one_index == x_index
+                    } else {
+                        false
+                    }
+                }
                 y => y == one,
             })
             .next()

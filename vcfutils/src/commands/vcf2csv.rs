@@ -300,7 +300,7 @@ fn run_xlsx_mode(vcf_inputs: &[&str], matches: &ArgMatches<'static>) -> Result<(
                 &merged_header_contents,
                 &config,
                 config.group_names.as_ref().map(|x| x.get(i + 1)).flatten(),
-                true,
+                false,
                 &mut writer,
             )?;
             row += additional_row;
