@@ -10,6 +10,7 @@ pub fn add_af<R: BufRead, W: Write>(
     reader: &mut vcf::VCFReader<R>,
     writer: W,
     category_to_sample: &CategoryToSamples,
+    af_precision: usize,
 ) -> Result<(), VCFUtilsError> {
     let mut info_keys_to_samples: Vec<(AlleleCountInfoKeys, HashSet<U8Vec>)> = category_to_sample
         .iter()
@@ -95,7 +96,7 @@ pub fn add_af<R: BufRead, W: Write>(
 
     while reader.next_record(&mut record)? {
         for (k, v) in info_keys_to_samples.iter() {
-            add_af_to_record(&mut record, k, v, &mut allele_count)?;
+            add_af_to_record(&mut record, k, v, &mut allele_count, af_precision)?;
         }
         vcf_writer.write_record(&record)?;
     }
@@ -116,6 +117,7 @@ pub fn add_af_to_record<S>(
     info_keys: &AlleleCountInfoKeys,
     samples: &HashSet<U8Vec, S>,
     cache: &mut AlleleCount,
+    af_precision: usize,
 ) -> Result<(), VCFUtilsError> {
     cache.add_record(record, 2, samples.iter())?;
     record.insert_info(
@@ -137,7 +139,14 @@ pub fn add_af_to_record<S>(
             .allele_count
             .iter()
             .skip(1)
-            .map(|x| format!("{:.4}", (*x as f64) / (cache.allele_number as f64)).into_bytes())
+            .map(|x| {
+                format!(
+                    "{:.prec$}",
+                    (*x as f64) / (cache.allele_number as f64),
+                    prec = af_precision
+                )
+                .into_bytes()
+            })
             .collect(),
     );
     record.insert_info(
@@ -220,7 +229,7 @@ mod test {
                 .collect(),
         )?;
         let mut data = Vec::<u8>::new();
-        add_af(&mut vcf_reader, &mut data, &category_mapping)?;
+        add_af(&mut vcf_reader, &mut data, &category_mapping, 4)?;
         std::fs::File::create("../target/add-af.vcf")?.write_all(&data)?;
 
         let mut vcf_reader2 = vcf::VCFReader::new(&data[..])?;

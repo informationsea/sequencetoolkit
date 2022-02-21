@@ -51,11 +51,23 @@ impl Command for AddAF {
                     .takes_value(true)
                     .multiple(true),
             )
+            .arg(
+                Arg::with_name("precision")
+                    .short("p")
+                    .long("precision")
+                    .help("Allele frequency precision")
+                    .takes_value(true)
+                    .default_value("4"),
+            )
     }
 
     fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
         let mut vcf_reader = utils::open_vcf_from_path(matches.value_of("input"))?;
         let mut vcf_writer = autocompress::create_or_stdout(matches.value_of("output"))?;
+        let af_precision: usize = matches
+            .value_of("precision")
+            .map(|x| x.parse().expect("precision must be integer"))
+            .unwrap_or(4);
 
         let category_to_sample = if let Some(x) = matches.value_of("category") {
             add_af::load_category_mapping::<_, RandomState>(
@@ -75,7 +87,12 @@ impl Command for AddAF {
             HashMap::new()
         };
 
-        add_af::add_af(&mut vcf_reader, &mut vcf_writer, &category_to_sample)?;
+        add_af::add_af(
+            &mut vcf_reader,
+            &mut vcf_writer,
+            &category_to_sample,
+            af_precision,
+        )?;
 
         Ok(())
     }
