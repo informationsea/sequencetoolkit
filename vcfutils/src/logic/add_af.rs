@@ -140,12 +140,16 @@ pub fn add_af_to_record<S>(
             .iter()
             .skip(1)
             .map(|x| {
-                format!(
-                    "{:.prec$}",
-                    (*x as f64) / (cache.allele_number as f64),
-                    prec = af_precision
-                )
-                .into_bytes()
+                if cache.allele_number == 0 {
+                    b".".to_vec()
+                } else {
+                    format!(
+                        "{:.prec$}",
+                        (*x as f64) / (cache.allele_number as f64),
+                        prec = af_precision
+                    )
+                    .into_bytes()
+                }
             })
             .collect(),
     );
@@ -229,7 +233,7 @@ mod test {
                 .collect(),
         )?;
         let mut data = Vec::<u8>::new();
-        add_af(&mut vcf_reader, &mut data, &category_mapping, 4)?;
+        add_af(&mut vcf_reader, &mut data, &category_mapping, 10)?;
         std::fs::File::create("../target/add-af.vcf")?.write_all(&data)?;
 
         let mut vcf_reader2 = vcf::VCFReader::new(&data[..])?;
@@ -263,6 +267,7 @@ mod test {
 
         let mut vcf_record = vcf::VCFRecord::new(vcf_reader2.header().clone());
         assert_eq!(true, vcf_reader2.next_record(&mut vcf_record)?);
+        assert_eq!(vcf_record.position, 32872836);
         assert_eq!(vcf_record.info(b"AC_P1"), Some(&vec![b"1".to_vec()]));
         assert_eq!(vcf_record.info(b"AC_P2"), Some(&vec![b"0".to_vec()]));
         assert_eq!(
@@ -275,6 +280,7 @@ mod test {
         );
 
         assert_eq!(true, vcf_reader2.next_record(&mut vcf_record)?);
+        assert_eq!(vcf_record.position, 32872987);
         assert_eq!(vcf_record.info(b"AC_P1"), Some(&vec![b"2".to_vec()]));
         assert_eq!(vcf_record.info(b"AC_P2"), Some(&vec![b"3".to_vec()]));
         assert_eq!(
@@ -287,6 +293,7 @@ mod test {
         );
 
         assert_eq!(true, vcf_reader2.next_record(&mut vcf_record)?);
+        assert_eq!(vcf_record.position, 32873110);
         assert_eq!(vcf_record.info(b"AC_P1"), Some(&vec![b"2".to_vec()]));
         assert_eq!(vcf_record.info(b"AC_P2"), Some(&vec![b"1".to_vec()]));
         assert_eq!(
@@ -297,6 +304,14 @@ mod test {
             vcf_record.info(b"GenotypeCount_P2"),
             Some(&vec![b"2".to_vec(), b"1".to_vec(), b"0".to_vec()])
         );
+
+        assert_eq!(true, vcf_reader2.next_record(&mut vcf_record)?);
+        assert_eq!(vcf_record.position, 32873175);
+        assert_eq!(
+            vcf_record.info(b"GenotypeCount"),
+            Some(&vec![b"0".to_vec(), b"0".to_vec(), b"0".to_vec()])
+        );
+        assert_eq!(vcf_record.info(b"AF"), Some(&vec![b".".to_vec()]));
 
         Ok(())
     }
