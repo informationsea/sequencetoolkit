@@ -15,6 +15,7 @@ pub struct AlleleCount {
     pub allele_number: u64,
     pub genotype_count: Vec<u64>,
     pub alt_hom_count: Vec<u64>,
+    pub ploidy: usize,
     cache: Vec<usize>,
 }
 
@@ -37,6 +38,7 @@ impl AlleleCount {
             allele_number: 0,
             genotype_count,
             alt_hom_count,
+            ploidy,
             cache: Vec::new(),
         }
     }
@@ -60,13 +62,15 @@ impl AlleleCount {
                     }
                 }
                 self.cache.sort_unstable();
-                if let Some(x) = self.genotype_count.get_mut(genotype_index(&self.cache)) {
-                    *x += 1;
-                }
-                if let Some(first_allele) = self.cache.get(0) {
-                    if self.cache.iter().all(|x| x == first_allele) {
-                        if let Some(x) = self.alt_hom_count.get_mut(*first_allele) {
-                            *x += 1;
+                if self.cache.len() == self.ploidy {
+                    if let Some(x) = self.genotype_count.get_mut(genotype_index(&self.cache)) {
+                        *x += 1;
+                    }
+                    if let Some(first_allele) = self.cache.get(0) {
+                        if self.cache.iter().all(|x| x == first_allele) {
+                            if let Some(x) = self.alt_hom_count.get_mut(*first_allele) {
+                                *x += 1;
+                            }
                         }
                     }
                 }
@@ -236,6 +240,20 @@ mod test {
         assert_eq!(allele_count.allele_count, vec![3, 3, 2]);
         assert_eq!(allele_count.genotype_count, vec![1, 1, 1, 0, 0, 1]);
         assert_eq!(allele_count.alt_hom_count, vec![1, 1, 1]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_allele_count3() -> Result<(), VCFUtilsError> {
+        let mut allele_count = AlleleCount::new(2, 2);
+        allele_count.add_genotype(b"0/0")?;
+        allele_count.add_genotype(b"./.")?;
+        allele_count.add_genotype(b"0/1")?;
+        allele_count.add_genotype(b"1/1")?;
+        assert_eq!(allele_count.allele_count, vec![3, 3, 0]);
+        assert_eq!(allele_count.genotype_count, vec![1, 1, 1, 0, 0, 0]);
+        assert_eq!(allele_count.alt_hom_count, vec![1, 1, 0]);
 
         Ok(())
     }
