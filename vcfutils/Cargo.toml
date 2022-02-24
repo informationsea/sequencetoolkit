@@ -15,7 +15,7 @@ failure = "0.1"
 autocompress = "0.2"
 vcf = "0.5"
 csv = "1"
-xlsxwriter = "0.3"
+xlsxwriter = { version = "0.3", features=["no-md5", "system-zlib"] }
 nom = "5"
 itertools = "0.9"
 serde = "1"

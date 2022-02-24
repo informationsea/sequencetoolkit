@@ -30,7 +30,12 @@ impl Command for SequencingError {
                     .takes_value(true)
                     .help("Reference FASTA"),
             )
-            .arg(Arg::with_name("output").short("o").long("output"))
+            .arg(
+                Arg::with_name("output")
+                    .short("o")
+                    .long("output")
+                    .takes_value(true),
+            )
     }
 
     fn run(&self, matches: &ArgMatches<'static>) -> Result<(), SequenceToolkitError> {
