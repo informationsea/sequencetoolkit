@@ -28,7 +28,10 @@ impl Command for ListSamples {
 
     fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
         let vcf_reader = utils::open_vcf_from_path(matches.value_of("input"))?;
-        let mut output = autocompress::create_or_stdout(matches.value_of("output"))?;
+        let mut output = autocompress::create_or_stdout(
+            matches.value_of("output"),
+            autocompress::CompressionLevel::Default,
+        )?;
         for one in vcf_reader.header().samples() {
             writeln!(output, "{}", str::from_utf8(one)?)?;
         }

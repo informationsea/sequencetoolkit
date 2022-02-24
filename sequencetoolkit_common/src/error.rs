@@ -32,6 +32,12 @@ pub enum SequenceToolkitErrorKind {
     OtherError(&'static str),
     #[fail(display = "BED Parse Error: {}", _0)]
     BedParseError(u64),
+    #[fail(display = "Error")]
+    AnyError,
+    #[fail(display = "Htslib Error")]
+    HtslibError,
+    #[fail(display = "Unknown sequence name error")]
+    UnknownSequenceError,
 }
 
 impl Fail for SequenceToolkitError {
@@ -115,5 +121,17 @@ impl From<num::ParseIntError> for SequenceToolkitError {
 impl From<num::ParseFloatError> for SequenceToolkitError {
     fn from(e: num::ParseFloatError) -> SequenceToolkitError {
         e.context(SequenceToolkitErrorKind::ParseFloatError).into()
+    }
+}
+
+impl From<anyhow::Error> for SequenceToolkitError {
+    fn from(e: anyhow::Error) -> SequenceToolkitError {
+        e.context(SequenceToolkitErrorKind::AnyError).into()
+    }
+}
+
+impl From<rust_htslib::errors::Error> for SequenceToolkitError {
+    fn from(e: rust_htslib::errors::Error) -> SequenceToolkitError {
+        e.context(SequenceToolkitErrorKind::HtslibError).into()
     }
 }

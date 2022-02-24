@@ -54,7 +54,10 @@ impl Command for ReplaceSampleName {
 
     fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
         let mut reader = utils::open_vcf_from_path(matches.value_of("input"))?;
-        let mut writer = autocompress::create_or_stdout(matches.value_of("output"))?;
+        let mut writer = autocompress::create_or_stdout(
+            matches.value_of("output"),
+            autocompress::CompressionLevel::Default,
+        )?;
 
         let (mapping, order): (HashMap<U8Vec, U8Vec>, Vec<U8Vec>) = create_sample_mapping(
             &reader,

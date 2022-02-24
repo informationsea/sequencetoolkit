@@ -30,7 +30,10 @@ impl Command for MergeBed {
     }
 
     fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
-        let mut output = autocompress::create_or_stdout(matches.value_of("output"))?;
+        let mut output = autocompress::create_or_stdout(
+            matches.value_of("output"),
+            autocompress::CompressionLevel::Default,
+        )?;
         let mut merger = BedMerger::new();
         if let Some(inputs) = matches.values_of("input") {
             for one in inputs {

@@ -35,7 +35,10 @@ $ java -jar snpEff.jar ann -v -canon -noStats -noLog hg19 < /dev/null 2> snpeff.
 
     fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
         let reader = io::BufReader::new(autocompress::open_or_stdin(matches.value_of("input"))?);
-        let mut writer = autocompress::create_or_stdout(matches.value_of("output"))?;
+        let mut writer = autocompress::create_or_stdout(
+            matches.value_of("output"),
+            autocompress::CompressionLevel::Default,
+        )?;
         let canonical_list = extract_canonical(reader)?;
         for one in canonical_list {
             writeln!(writer, "{}", one)?;

@@ -45,7 +45,10 @@ impl Command for RewriteInfo {
 
     fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
         let mut vcf_reader = utils::open_vcf_from_path(matches.value_of("input"))?;
-        let mut writer = autocompress::create_or_stdout(matches.value_of("output"))?;
+        let mut writer = autocompress::create_or_stdout(
+            matches.value_of("output"),
+            autocompress::CompressionLevel::Default,
+        )?;
         let blacklist = matches
             .values_of("exclude")
             .map(|x| x.map(|x| x.as_bytes().to_vec()).collect::<HashSet<_>>())

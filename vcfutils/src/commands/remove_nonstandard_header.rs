@@ -37,7 +37,10 @@ impl Command for RemoveNonStandardHeader {
     fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
         let mut reader =
             io::BufReader::new(autocompress::open_or_stdin(matches.value_of("input"))?);
-        let mut writer = autocompress::create_or_stdout(matches.value_of("output"))?;
+        let mut writer = autocompress::create_or_stdout(
+            matches.value_of("output"),
+            autocompress::CompressionLevel::Default,
+        )?;
 
         let mut header_file_format: Vec<Vec<u8>> = Vec::new();
         let mut header_info: Vec<Vec<u8>> = Vec::new();

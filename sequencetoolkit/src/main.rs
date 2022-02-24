@@ -7,6 +7,7 @@ pub(crate) const COMMANDS: &[&dyn Command] = &[
     &vcfutils::VCFUtils,
     &geneannot::GeneAnnot,
     &bedutils::BEDUtils,
+    &bamutils::BamUtils,
 ];
 
 fn main() {

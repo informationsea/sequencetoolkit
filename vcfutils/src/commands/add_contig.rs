@@ -29,7 +29,10 @@ impl Command for AddContig {
 
     fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
         let vcf_reader = autocompress::open(matches.value_of("input").unwrap())?;
-        let mut vcf_writer = autocompress::create_or_stdout(matches.value_of("output"))?;
+        let mut vcf_writer = autocompress::create_or_stdout(
+            matches.value_of("output"),
+            autocompress::CompressionLevel::Default,
+        )?;
 
         let contigs = add_contig::scan_contig(&mut BufReader::new(vcf_reader))?;
         let vcf_reader = autocompress::open(matches.value_of("input").unwrap())?;

@@ -12,7 +12,7 @@ sequencetoolkit_common = {path = "../sequencetoolkit_common"}
 bio = "0.32"
 bio-types = "0.7"
 failure = "0.1"
-autocompress = "0.1"
+autocompress = "0.2"
 vcf = "0.5"
 csv = "1"
 xlsxwriter = "0.3"

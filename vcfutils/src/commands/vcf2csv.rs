@@ -129,9 +129,11 @@ impl Command for VCF2CSV {
         let mut writer: Box<dyn TableWriter> = match output_type {
             "csv" => Box::new(CSVWriter::new(autocompress::create_or_stdout(
                 matches.value_of("output"),
+                autocompress::CompressionLevel::Default,
             )?)),
             "tsv" => Box::new(TSVWriter::new(autocompress::create_or_stdout(
                 matches.value_of("output"),
+                autocompress::CompressionLevel::Default,
             )?)),
             _ => unreachable!(),
         };

@@ -63,7 +63,10 @@ impl Command for AddAF {
 
     fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
         let mut vcf_reader = utils::open_vcf_from_path(matches.value_of("input"))?;
-        let mut vcf_writer = autocompress::create_or_stdout(matches.value_of("output"))?;
+        let mut vcf_writer = autocompress::create_or_stdout(
+            matches.value_of("output"),
+            autocompress::CompressionLevel::Default,
+        )?;
         let af_precision: usize = matches
             .value_of("precision")
             .map(|x| x.parse().expect("precision must be integer"))

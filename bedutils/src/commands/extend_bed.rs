@@ -77,6 +77,7 @@ impl Command for ExtendBed {
 
         let mut output = BedWriter::new(io::BufWriter::new(autocompress::create_or_stdout(
             matches.value_of("output"),
+            autocompress::CompressionLevel::Default,
         )?));
         let mut input = BedReader::new(io::BufReader::new(autocompress::open_or_stdin(
             matches.value_of("input"),

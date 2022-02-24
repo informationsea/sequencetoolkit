@@ -54,7 +54,10 @@ impl Command for GenerateSql {
 
     fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
         let vcf_reader = utils::open_vcf_from_path(matches.value_of("input"))?;
-        let mut output = autocompress::create_or_stdout(matches.value_of("output"))?;
+        let mut output = autocompress::create_or_stdout(
+            matches.value_of("output"),
+            autocompress::CompressionLevel::Default,
+        )?;
         let mut config = create_config(&vcf_reader.header(), matches)?;
         config.split_multi_allelic = true;
         config.decoded_genotype = false;
