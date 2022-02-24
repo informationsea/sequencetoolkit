@@ -123,10 +123,14 @@ impl SequencingErrorCount {
                     seq_pos += (*l) as usize;
                     //eprintln!("Soft Clip: {l}");
                 }
+                Cigar::RefSkip(l) => {
+                    ref_pos += (*l) as usize;
+                }
                 Cigar::HardClip(l) => {
                     increment(&mut self.hardclip_length, *l);
                 }
-                Cigar::Match(l) => {
+                Cigar::Pad(_) => (),
+                Cigar::Match(l) | Cigar::Equal(l) | Cigar::Diff(l) => {
                     //eprintln!("Match: {l}");
                     let match_ref = &self.cache_data[ref_pos..(ref_pos + *l as usize)];
                     let match_seq = &seq[seq_pos..(seq_pos + *l as usize)];
@@ -166,9 +170,6 @@ impl SequencingErrorCount {
 
                     seq_pos += (*l) as usize;
                     ref_pos += (*l) as usize;
-                }
-                _ => {
-                    unreachable!()
                 }
             }
         }
