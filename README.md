@@ -1,12 +1,10 @@
-sequencetoolkit
-===============
+# sequencetoolkit
+
 [![Build](https://github.com/informationsea/sequencetoolkit/workflows/Rust/badge.svg)](https://github.com/informationsea/sequencetoolkit/actions)
-[![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/informationsea/sequencetoolkit)](https://hub.docker.com/r/informationsea/sequencetoolkit)
 
 Toolkit for Genome Sequence Analysis
 
-Features
---------
+## Features
 
 ### BED Utilities
 
@@ -29,8 +27,7 @@ Features
 7. Remove non-standard headers.
 8. Generate CREATE TABLE SQL from VCF file.
 
-Usage
------
+## Usage
 
 ### Add Genotype Count
 
@@ -54,12 +51,12 @@ ARGS:
     <input>    Input VCF file
 ```
 
-First line in a category mapping file is used as header. If you use category mapping file,
-`id` and `value` options are required.
+First line in a category mapping file is used as header. If you use category
+mapping file, `id` and `value` options are required.
 
 #### Example
 
-* `category.csv`
+- `category.csv`
 
 ```
 id,sex,protocol
@@ -118,8 +115,8 @@ ARGS:
     <input>    Input VCF file
 ```
 
-Note: contig mapping file should not include header line. A first column should be
-original contig name, and a second column should be new contig name.
+Note: contig mapping file should not include header line. A first column should
+be original contig name, and a second column should be new contig name.
 
 ### Replace sample names
 
