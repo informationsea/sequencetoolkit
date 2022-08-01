@@ -139,10 +139,12 @@ dependencies = [
 name = "bamutils"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "autocompress",
  "bio 0.39.2",
  "clap",
  "csv",
+ "rand 0.8.5",
  "rust-htslib",
  "sequencetoolkit_common",
 ]
