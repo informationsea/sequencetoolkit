@@ -1,7 +1,7 @@
 pub mod recalc_af;
 pub mod tablewriter;
 
-use crate::error::{VCFUtilsError, VCFUtilsErrorKind};
+use crate::error::VCFUtilsError;
 use csv::Reader as CSVReader;
 use std::collections::HashMap;
 use std::fs::File;
@@ -46,10 +46,10 @@ pub fn load_mapping<R: Read>(reader: CSVReader<R>) -> Result<Mapping, VCFUtilsEr
         let row = row?;
         let key = row
             .get(0)
-            .ok_or(VCFUtilsErrorKind::OtherError("no first column"))?;
+            .ok_or(VCFUtilsError::OtherError("no first column"))?;
         let value = row
             .get(1)
-            .ok_or(VCFUtilsErrorKind::OtherError("no second column"))?;
+            .ok_or(VCFUtilsError::OtherError("no second column"))?;
         mapping.insert(key.to_vec(), value.to_vec());
         key_order.push(key.to_vec());
         value_order.push(value.to_vec());

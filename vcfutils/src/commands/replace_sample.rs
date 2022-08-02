@@ -52,7 +52,7 @@ impl Command for ReplaceSampleName {
             )
     }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         let mut reader = utils::open_vcf_from_path(matches.value_of("input"))?;
         let mut writer = autocompress::create_or_stdout(
             matches.value_of("output"),

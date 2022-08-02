@@ -1,4 +1,4 @@
-use crate::{GeneAnnotError, GeneAnnotErrorKind};
+use crate::GeneAnnotError;
 use bio::data_structures::interval_tree::IntervalTree;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -591,7 +591,7 @@ impl FromStr for CdsStatus {
             "incmpl" => CdsStatus::Incomplete,
             "cmpl" => CdsStatus::Complete,
             _ => {
-                return Err(GeneAnnotErrorKind::OtherError("unknown CDS status").into());
+                return Err(GeneAnnotError::OtherError("unknown CDS status"));
             }
         })
     }

@@ -1,4 +1,3 @@
-use sequencetoolkit_common::{SequenceToolkitError, SequenceToolkitErrorKind};
 use std::io;
 use std::str;
 
@@ -25,7 +24,7 @@ impl<R: io::Write> BedWriter<R> {
         BedWriter { writer }
     }
 
-    pub fn write_record(&mut self, region: &BedRegion) -> Result<(), SequenceToolkitError> {
+    pub fn write_record(&mut self, region: &BedRegion) -> anyhow::Result<()> {
         self.writer.write_all(&region.chromosome)?;
         write!(self.writer, "\t{}\t{}", region.start, region.end)?;
         for one in &region.columns {
@@ -52,7 +51,7 @@ impl<R: io::BufRead> BedReader<R> {
         }
     }
 
-    pub fn next(&mut self, region: &mut BedRegion) -> Result<bool, SequenceToolkitError> {
+    pub fn next(&mut self, region: &mut BedRegion) -> anyhow::Result<bool> {
         loop {
             self.line += 1;
             self.buffer.clear();
@@ -100,7 +99,10 @@ impl<R: io::BufRead> BedReader<R> {
         }
 
         if max < 2 {
-            return Err(SequenceToolkitErrorKind::BedParseError(self.line).into());
+            return Err(anyhow::anyhow!(
+                "failed to parse BED at line: {}",
+                self.line
+            ));
         }
 
         if max < region.columns.len() + 2 {
@@ -115,7 +117,7 @@ impl<R: io::BufRead> BedReader<R> {
 mod test {
     use super::*;
     #[test]
-    fn test_bed_parser() -> Result<(), SequenceToolkitError> {
+    fn test_bed_parser() -> anyhow::Result<()> {
         let test_bed = b"X\t1\t2\tA\r\nY\t30\t40\nM\t500\t600\ta\tb\tc";
         let mut bed_reader = BedReader::new(&test_bed[..]);
         let mut region = BedRegion::default();

@@ -1,6 +1,6 @@
 use super::Command;
 use crate::annotator::models::TranscriptTrait;
-use crate::{GeneAnnotError, GeneAnnotErrorKind};
+use crate::GeneAnnotError;
 use clap::{App, Arg, ArgMatches};
 use flate2::read::MultiGzDecoder;
 use log::info;
@@ -40,7 +40,7 @@ impl Command for TranscriptPosition {
                     .takes_value(true),
             )
     }
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         Ok(search_transcript_position(
             matches.value_of("db").unwrap(),
             matches.value_of("chromosome").unwrap(),
@@ -75,6 +75,6 @@ fn search_transcript_position(
         }
         Ok(())
     } else {
-        Err(GeneAnnotErrorKind::OtherError("Unknown chromosome name").into())
+        Err(GeneAnnotError::OtherError("Unknown chromosome name").into())
     }
 }

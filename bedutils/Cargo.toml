@@ -9,7 +9,8 @@ edition = "2018"
 [dependencies]
 clap = "2"
 sequencetoolkit_common = {path = "../sequencetoolkit_common"}
-bio = "0.32"
-bio-types = "0.7"
+bio = "0.41.0"
+bio-types = "0.13.0"
 failure = "0.1"
 autocompress = "0.2"
+anyhow = "1"

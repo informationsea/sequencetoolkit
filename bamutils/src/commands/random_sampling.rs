@@ -1,7 +1,7 @@
 use clap::{App, Arg, ArgMatches};
 use rand::prelude::*;
 use rust_htslib::bam::{self, Read};
-use sequencetoolkit_common::{Command, SequenceToolkitError};
+use sequencetoolkit_common::Command;
 use std::collections::HashMap;
 use std::str;
 
@@ -45,7 +45,7 @@ impl Command for RandomSampling {
             )
     }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), SequenceToolkitError> {
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         run(
             matches.value_of("bam").unwrap(),
             matches
@@ -65,7 +65,7 @@ fn run(
     sampling_rate: f64,
     output_path: &str,
     reference: Option<&str>,
-) -> Result<(), SequenceToolkitError> {
+) -> anyhow::Result<()> {
     if sampling_rate <= 0. {
         return Err(anyhow::anyhow!("sampling rate must be larger than 0").into());
     }

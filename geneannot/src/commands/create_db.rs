@@ -52,7 +52,8 @@ example file URL:
                     .takes_value(true),
             )
     }
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
+
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         Ok(create_db(
             matches.value_of("db").unwrap(),
             matches.value_of("output").unwrap(),

@@ -1,5 +1,5 @@
 use crate::annotator::models::{CdsPosition, TranscriptPosition};
-use crate::{GeneAnnotError, GeneAnnotErrorKind};
+use crate::GeneAnnotError;
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
@@ -94,7 +94,7 @@ fn partial_transcript_position_parser(
                 Some(("+", x)) => Ok(TranscriptPosition::AfterExon(base_position, x.parse()?)),
                 Some(("-", x)) => Ok(TranscriptPosition::BeforeExon(base_position, x.parse()?)),
                 None => Ok(TranscriptPosition::Exon(base_position)),
-                _ => Err(GeneAnnotErrorKind::HgvsPositionParseError.into()),
+                _ => Err(GeneAnnotError::HgvsPositionParseError),
             }
         },
     )(text)
@@ -120,13 +120,13 @@ pub fn parse_hgvs_position(text: &str) -> Result<ParsedPosition, GeneAnnotError>
                 Some("*") => Ok(ParsedPosition::CdsPosition(CdsPosition::AfterCds(r.2))),
                 Some("-") => Ok(ParsedPosition::CdsPosition(CdsPosition::BeforeCds(r.2))),
                 None => Ok(ParsedPosition::CdsPosition(CdsPosition::Cds(r.2))),
-                _ => Err(GeneAnnotErrorKind::HgvsPositionParseError.into()),
+                _ => Err(GeneAnnotError::HgvsPositionParseError),
             },
         ),
     ))(text)
     {
         Ok(("", result)) => Ok(result),
-        _ => Err(GeneAnnotErrorKind::HgvsPositionParseError.into()),
+        _ => Err(GeneAnnotError::HgvsPositionParseError),
     }
 }
 

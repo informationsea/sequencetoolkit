@@ -33,7 +33,7 @@ $ java -jar snpEff.jar ann -v -canon -noStats -noLog hg19 < /dev/null 2> snpeff.
             )
     }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         let reader = io::BufReader::new(autocompress::open_or_stdin(matches.value_of("input"))?);
         let mut writer = autocompress::create_or_stdout(
             matches.value_of("output"),
@@ -48,9 +48,7 @@ $ java -jar snpEff.jar ann -v -canon -noStats -noLog hg19 < /dev/null 2> snpeff.
     }
 }
 
-fn extract_canonical(
-    mut reader: impl io::BufRead,
-) -> Result<Vec<String>, crate::SequenceToolkitError> {
+fn extract_canonical(mut reader: impl io::BufRead) -> anyhow::Result<Vec<String>> {
     let mut result = Vec::new();
 
     let mut line = String::new();
@@ -75,7 +73,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_extract_canonical() -> Result<(), crate::SequenceToolkitError> {
+    fn test_extract_canonical() -> anyhow::Result<()> {
         let snpeff_log = include_bytes!("../../testfiles/snpeff-log.txt");
         let canonical_list = extract_canonical(&snpeff_log[..])?;
         assert!(canonical_list.contains(&"ENST00000291182.9_4".to_string()));

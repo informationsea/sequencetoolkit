@@ -34,7 +34,7 @@ impl Command for RemoveNonStandardHeader {
             )
     }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         let mut reader =
             io::BufReader::new(autocompress::open_or_stdin(matches.value_of("input"))?);
         let mut writer = autocompress::create_or_stdout(

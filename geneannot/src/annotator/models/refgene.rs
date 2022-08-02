@@ -1,6 +1,5 @@
 use super::*;
-use crate::{GeneAnnotError, GeneAnnotErrorKind};
-use failure::ResultExt;
+use crate::GeneAnnotError;
 use log::warn;
 use std::collections::{HashMap, HashSet};
 use std::io::{self, BufReader};
@@ -21,16 +20,16 @@ pub fn load_refgene(
     for (line, record) in table_reader.into_records().enumerate() {
         let record = record?;
         if record.len() != 16 {
-            return Err(GeneAnnotErrorKind::OtherError("missing columns").into());
+            return Err(GeneAnnotError::OtherError("missing columns").into());
         }
         let transcript_line = parse_transcript_line(&record)
-            .context(GeneAnnotErrorKind::RefGeneParseError(line as u64 + 1))?;
+            .map_err(|x| GeneAnnotError::RefGeneParseError(line as u64 + 1, Box::new(x)))?;
         if genome
             .chromosome_index(transcript_line.chromosome)
             .is_some()
         {
             let (gene_name, transcript) = parse_transcript(&transcript_line, &genome)
-                .context(GeneAnnotErrorKind::RefGeneParseError(line as u64 + 1))?;
+                .map_err(|x| GeneAnnotError::RefGeneParseError(line as u64 + 1, Box::new(x)))?;
 
             if let Some(l) = gene_to_transcript.get_mut(&gene_name) {
                 l.push(transcript);
@@ -250,7 +249,7 @@ mod test {
 
     #[allow(clippy::unreadable_literal)]
     #[test]
-    fn test_parse_coding_transcript() -> Result<(), GeneAnnotError> {
+    fn test_parse_coding_transcript() -> anyhow::Result<()> {
         let index =
             Index::from_file(&"testfiles/genome/human/GRCh38.primary_assembly.genome.fa.fai")?;
         let genome = fasta::load_fasta("GRCh38", &index);
@@ -325,7 +324,7 @@ mod test {
 
     #[allow(clippy::unreadable_literal)]
     #[test]
-    fn test_parse_coding_transcript2() -> Result<(), GeneAnnotError> {
+    fn test_parse_coding_transcript2() -> anyhow::Result<()> {
         let index =
             Index::from_file(&"testfiles/genome/human/GRCh38.primary_assembly.genome.fa.fai")?;
         let genome = fasta::load_fasta("GRCh38", &index);
@@ -390,7 +389,7 @@ mod test {
 
     #[allow(clippy::unreadable_literal)]
     #[test]
-    fn test_parse_noncoding_transcript() -> Result<(), GeneAnnotError> {
+    fn test_parse_noncoding_transcript() -> anyhow::Result<()> {
         let index =
             Index::from_file(&"testfiles/genome/human/GRCh38.primary_assembly.genome.fa.fai")?;
         let genome = fasta::load_fasta("GRCh38", &index);
@@ -451,7 +450,7 @@ mod test {
 
     use flate2::read::MultiGzDecoder;
     #[test]
-    fn test_load_refgene() -> Result<(), GeneAnnotError> {
+    fn test_load_refgene() -> anyhow::Result<()> {
         let index = Index::from_file(&"testfiles/genome/human/hg38.fa.fai")?;
         let genome = fasta::load_fasta("GRCh38", &index);
         load_refgene(
@@ -463,7 +462,7 @@ mod test {
     }
 
     #[test]
-    fn test_load_gencode() -> Result<(), GeneAnnotError> {
+    fn test_load_gencode() -> anyhow::Result<()> {
         let index = Index::from_file(&"testfiles/genome/human/hg38.fa.fai")?;
         let genome = fasta::load_fasta("GRCh38", &index);
         load_refgene(

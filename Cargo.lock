@@ -58,27 +58,12 @@ checksum = "c91f1f46651137be86f3a2b9a8359f9ab421d04d941c62b5982e1ca21113adf9"
 
 [[package]]
 name = "approx"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0e60b75072ecd4168020818c0107f2857bb6c4e64252d8d3983f6263b40a5c3"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
-name = "approx"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
 dependencies = [
  "num-traits",
 ]
-
-[[package]]
-name = "array-macro"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06e97b4e522f9e55523001238ac59d13a8603af57f69980de5d8de4bbbe8ada6"
 
 [[package]]
 name = "arrayvec"
@@ -141,7 +126,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "autocompress",
- "bio 0.39.2",
+ "bio",
  "clap",
  "csv",
  "rand 0.8.5",
@@ -153,9 +138,10 @@ dependencies = [
 name = "bedutils"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "autocompress",
- "bio 0.32.0",
- "bio-types 0.7.0",
+ "bio",
+ "bio-types",
  "clap",
  "failure",
  "sequencetoolkit_common",
@@ -195,94 +181,41 @@ dependencies = [
 
 [[package]]
 name = "bio"
-version = "0.32.0"
+version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1161c7b80eea668a884b4be136d83ef5175df5aaa6dcba482bdf4fbe1d046f2"
-dependencies = [
- "approx 0.3.2",
- "bio-types 0.13.0",
- "bit-set",
- "bv",
- "bytecount",
- "csv",
- "custom_derive",
- "enum-map 0.6.6",
- "fnv",
- "fxhash",
- "getset 0.0.9",
- "itertools 0.9.0",
- "itertools-num",
- "lazy_static",
- "multimap",
- "ndarray 0.13.1",
- "newtype_derive",
- "num-integer",
- "num-traits",
- "ordered-float",
- "petgraph 0.5.1",
- "quick-error",
- "regex",
- "serde",
- "serde_derive",
- "snafu",
- "statrs 0.12.0",
- "strum 0.18.0",
- "strum_macros 0.18.0",
- "triple_accel 0.3.4",
- "vec_map",
-]
-
-[[package]]
-name = "bio"
-version = "0.39.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b338db6f3c8a8ede1779fad84b6e52f36101dbd79daacc4fb3746efc9fe6002"
+checksum = "4a69423e30444738eccc5e54eccee75779dd3f15ecc0469b95d8529d4b6b7586"
 dependencies = [
  "anyhow",
- "approx 0.5.1",
- "bio-types 0.13.0",
+ "approx",
+ "bio-types",
  "bit-set",
  "bv",
  "bytecount",
  "csv",
  "custom_derive",
- "enum-map 1.1.1",
+ "enum-map",
  "fxhash",
- "getset 0.1.2",
+ "getset",
  "itertools 0.10.3",
  "itertools-num",
  "lazy_static",
  "multimap",
- "ndarray 0.15.6",
+ "ndarray",
  "newtype_derive",
  "num-integer",
  "num-traits",
  "ordered-float",
- "petgraph 0.6.2",
+ "petgraph",
  "rand 0.8.5",
  "regex",
  "serde",
  "serde_derive",
- "statrs 0.15.0",
- "strum 0.23.0",
+ "statrs",
+ "strum",
  "strum_macros 0.23.1",
  "thiserror",
- "triple_accel 0.4.0",
+ "triple_accel",
  "vec_map",
-]
-
-[[package]]
-name = "bio-types"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d4011aaa9f8bfece367ef7d23f23279710eacf7df462d92c5135eabeb82799b"
-dependencies = [
- "derive-new",
- "lazy_static",
- "quick-error",
- "regex",
- "serde",
- "serde_derive",
 ]
 
 [[package]]
@@ -538,12 +471,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "doc-comment"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
-
-[[package]]
 name = "either"
 version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -551,32 +478,11 @@ checksum = "3f107b87b6afc2a64fd13cac55fe06d6c8859f12d4b14cbcdd2c67d0976781be"
 
 [[package]]
 name = "enum-map"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23595c55d463536d70a0cc71a521d4c1040a2e03816e455c38e8bb1f0981de98"
-dependencies = [
- "array-macro",
- "enum-map-derive 0.4.6",
-]
-
-[[package]]
-name = "enum-map"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e893a7ba6116821058dec84a6fb14fb2a97cd8ce5fd0f85d5a4e760ecd7329d9"
 dependencies = [
- "enum-map-derive 0.6.0",
-]
-
-[[package]]
-name = "enum-map-derive"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5c450cf304c9e18d45db562025a14fb1ca0f5c769b6f609309f81d4c31de455"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
+ "enum-map-derive",
 ]
 
 [[package]]
@@ -654,12 +560,6 @@ checksum = "835a3dc7d1ec9e75e2b5fb4ba75396837112d2060b03f7d43bc1897c7f7211da"
 
 [[package]]
 name = "fixedbitset"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37ab347416e802de484e4d03c7316c48f1ecb56574dfd4a46a80f173ce1de04d"
-
-[[package]]
-name = "fixedbitset"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
@@ -673,12 +573,6 @@ dependencies = [
  "crc32fast",
  "miniz_oxide",
 ]
-
-[[package]]
-name = "fnv"
-version = "1.0.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "form_urlencoded"
@@ -712,18 +606,19 @@ dependencies = [
 name = "geneannot"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "autocompress",
  "bincode",
- "bio 0.32.0",
+ "bio",
  "clap",
  "csv",
- "failure",
  "flate2",
  "log",
  "nom",
  "sequencetoolkit_common",
  "serde",
  "serde_json",
+ "thiserror",
  "vcf",
 ]
 
@@ -747,17 +642,6 @@ dependencies = [
  "cfg-if",
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
-]
-
-[[package]]
-name = "getset"
-version = "0.0.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bb3f5b7d8d70c9bd23cf29b2b38094661418fb0ea79f1b0cc2019a11d6f5429"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -1044,15 +928,6 @@ checksum = "a3e378b66a060d48947b590737b30a1be76706c8dd7b8ba0f2fe3989c68a853f"
 
 [[package]]
 name = "matrixmultiply"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "916806ba0031cd542105d916a97c8572e1fa6dd79c9c51e7eb43a09ec2dd84c1"
-dependencies = [
- "rawpointer",
-]
-
-[[package]]
-name = "matrixmultiply"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "add85d4dd35074e6fedc608f8c8f513a3548619a9024b751949ef0e8e45a4d84"
@@ -1090,10 +965,10 @@ version = "0.27.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "462fffe4002f4f2e1f6a9dcf12cc1a6fc0e15989014efc02a941d3e0f5dc2120"
 dependencies = [
- "approx 0.5.1",
- "matrixmultiply 0.3.2",
+ "approx",
+ "matrixmultiply",
  "nalgebra-macros",
- "num-complex 0.4.2",
+ "num-complex",
  "num-rational",
  "num-traits",
  "rand 0.8.5",
@@ -1115,25 +990,12 @@ dependencies = [
 
 [[package]]
 name = "ndarray"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac06db03ec2f46ee0ecdca1a1c34a99c0d188a0d83439b84bf0cb4b386e4ab09"
-dependencies = [
- "matrixmultiply 0.2.4",
- "num-complex 0.2.4",
- "num-integer",
- "num-traits",
- "rawpointer",
-]
-
-[[package]]
-name = "ndarray"
 version = "0.15.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adb12d4e967ec485a5f71c6311fe28158e9d6f4bc4a447b474184d0f91a8fa32"
 dependencies = [
- "matrixmultiply 0.3.2",
- "num-complex 0.4.2",
+ "matrixmultiply",
+ "num-complex",
  "num-integer",
  "num-traits",
  "rawpointer",
@@ -1157,16 +1019,6 @@ dependencies = [
  "lexical-core",
  "memchr",
  "version_check",
-]
-
-[[package]]
-name = "num-complex"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6b19411a9719e753aff12e5187b74d60d3dc449ec3f4dc21e3989c3f554bc95"
-dependencies = [
- "autocfg",
- "num-traits",
 ]
 
 [[package]]
@@ -1276,21 +1128,11 @@ checksum = "d4fd5641d01c8f18a23da7b6fe29298ff4b55afcccdf78973b24cf3175fee32e"
 
 [[package]]
 name = "petgraph"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "467d164a6de56270bd7c4d070df81d07beace25012d5103ced4e9ff08d6afdb7"
-dependencies = [
- "fixedbitset 0.2.0",
- "indexmap",
-]
-
-[[package]]
-name = "petgraph"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6d5014253a1331579ce62aa67443b4a658c5e7dd03d4bc6d302b94474888143"
 dependencies = [
- "fixedbitset 0.4.2",
+ "fixedbitset",
  "indexmap",
 ]
 
@@ -1480,7 +1322,7 @@ version = "0.39.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "239ef7334dbf59acd56b7a6fa62a525ed7e36d6239a686ed4ff61bc794108e53"
 dependencies = [
- "bio-types 0.13.0",
+ "bio-types",
  "byteorder",
  "custom_derive",
  "derive-new",
@@ -1555,10 +1397,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "csv",
- "failure",
- "rust-htslib",
- "vcf",
 ]
 
 [[package]]
@@ -1604,31 +1442,10 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e82063457853d00243beda9952e910b82593e4b07ae9f721b9278a99a0d3d5c"
 dependencies = [
- "approx 0.5.1",
- "num-complex 0.4.2",
+ "approx",
+ "num-complex",
  "num-traits",
  "paste",
-]
-
-[[package]]
-name = "snafu"
-version = "0.6.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eab12d3c261b2308b0d80c26fffb58d17eba81a4be97890101f416b478c79ca7"
-dependencies = [
- "doc-comment",
- "snafu-derive",
-]
-
-[[package]]
-name = "snafu-derive"
-version = "0.6.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1508efa03c362e23817f96cde18abed596a25219a8b2c66e8db33c03543d315b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -1645,20 +1462,11 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "statrs"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cce16f6de653e88beca7bd13780d08e09d4489dbca1f9210e041bc4852481382"
-dependencies = [
- "rand 0.7.3",
-]
-
-[[package]]
-name = "statrs"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05bdbb8e4e78216a85785a85d3ec3183144f98d0097b9281802c019bb07a6f05"
 dependencies = [
- "approx 0.5.1",
+ "approx",
  "lazy_static",
  "nalgebra",
  "num-traits",
@@ -1673,27 +1481,9 @@ checksum = "8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a"
 
 [[package]]
 name = "strum"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57bd81eb48f4c437cadc685403cad539345bf703d78e63707418431cecd4522b"
-
-[[package]]
-name = "strum"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cae14b91c7d11c9a851d3fbc80a963198998c2a64eec840477fa92d8ce9b70bb"
-
-[[package]]
-name = "strum_macros"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87c85aa3f8ea653bfd3ddf25f7ee357ee4d204731f6aa9ad04002306f6e2774c"
-dependencies = [
- "heck 0.3.3",
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "strum_macros"
@@ -1799,12 +1589,6 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "triple_accel"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "622b09ce2fe2df4618636fb92176d205662f59803f39e70d1c333393082de96c"
-
-[[package]]
-name = "triple_accel"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22048bc95dfb2ffd05b1ff9a756290a009224b60b2f0e7525faeee7603851e63"
@@ -1868,22 +1652,23 @@ dependencies = [
 
 [[package]]
 name = "vcf"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dbb9fcc20078d9fbfe1a7c9d6db04ed18dee33258457e4bbd43f70cd880c0fbb"
+checksum = "889aa32efc707bb480e7c85d6fccec2e65268e22a6999704dc2db969be88c0b7"
 dependencies = [
- "failure",
- "lazy_static",
  "nom",
+ "once_cell",
+ "thiserror",
 ]
 
 [[package]]
 name = "vcfutils"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "autocompress",
- "bio 0.32.0",
- "bio-types 0.7.0",
+ "bio",
+ "bio-types",
  "clap",
  "csv",
  "failure",
@@ -1894,6 +1679,7 @@ dependencies = [
  "rand 0.7.3",
  "sequencetoolkit_common",
  "serde",
+ "thiserror",
  "vcf",
  "xlsxwriter",
 ]

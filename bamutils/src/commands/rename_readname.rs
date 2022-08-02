@@ -1,6 +1,6 @@
 use clap::{App, Arg, ArgMatches};
 use rust_htslib::bam::{self, Read};
-use sequencetoolkit_common::{Command, SequenceToolkitError};
+use sequencetoolkit_common::Command;
 use std::collections::HashMap;
 use std::str;
 
@@ -36,7 +36,7 @@ impl Command for RenameReadname {
             )
     }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), SequenceToolkitError> {
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         run(
             matches.value_of("bam").unwrap(),
             matches.value_of("output").unwrap(),
@@ -46,11 +46,7 @@ impl Command for RenameReadname {
     }
 }
 
-fn run(
-    bam_path: &str,
-    output_path: &str,
-    reference: Option<&str>,
-) -> Result<(), SequenceToolkitError> {
+fn run(bam_path: &str, output_path: &str, reference: Option<&str>) -> anyhow::Result<()> {
     let mut reader = bam::Reader::from_path(bam_path)?;
     if let Some(reference) = reference {
         reader.set_reference(reference)?;

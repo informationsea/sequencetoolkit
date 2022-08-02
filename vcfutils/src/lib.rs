@@ -6,7 +6,6 @@ pub mod logic;
 pub mod utils;
 
 use sequencetoolkit_common::Command;
-use sequencetoolkit_common::SequenceToolkitError;
 
 pub struct VCFUtils;
 
@@ -26,7 +25,7 @@ impl Command for VCFUtils {
             .setting(AppSettings::SubcommandRequiredElseHelp)
     }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), SequenceToolkitError> {
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         for one_command in commands::COMMANDS {
             if let Some(matches) = matches.subcommand_matches(one_command.command_name()) {
                 return one_command.run(matches);

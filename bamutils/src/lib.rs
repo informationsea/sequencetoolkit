@@ -5,7 +5,6 @@ use clap::{crate_authors, crate_version, App, AppSettings, ArgMatches};
 use std::str;
 
 use sequencetoolkit_common::Command;
-use sequencetoolkit_common::SequenceToolkitError;
 
 pub struct BamUtils;
 
@@ -25,7 +24,7 @@ impl Command for BamUtils {
             .setting(AppSettings::SubcommandRequiredElseHelp)
     }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), SequenceToolkitError> {
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         for one_command in commands::COMMANDS {
             if let Some(matches) = matches.subcommand_matches(one_command.command_name()) {
                 return one_command.run(matches);

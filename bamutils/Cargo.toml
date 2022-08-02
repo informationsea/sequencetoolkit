@@ -9,7 +9,7 @@ edition = "2021"
 clap = "2"
 sequencetoolkit_common = {path = "../sequencetoolkit_common"}
 rust-htslib = "0.39.5"
-bio = "^0.39.2"
+bio = "0.41.0"
 csv = "^1.1.6"
 autocompress = "^0.2.2"
 rand = "0.8.5"

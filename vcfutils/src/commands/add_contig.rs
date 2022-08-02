@@ -27,7 +27,7 @@ impl Command for AddContig {
             )
     }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         let vcf_reader = autocompress::open(matches.value_of("input").unwrap())?;
         let mut vcf_writer = autocompress::create_or_stdout(
             matches.value_of("output"),

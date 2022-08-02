@@ -1,6 +1,6 @@
 // Recalculate AF/AC/AN
 
-use crate::error::{VCFUtilsError, VCFUtilsErrorKind};
+use crate::error::VCFUtilsError;
 use nom::{
     self, branch::alt, bytes::complete::tag, bytes::complete::take_while1, character::is_digit,
     eof, multi::separated_list, named, sequence::tuple,
@@ -77,7 +77,7 @@ impl AlleleCount {
 
                 Ok(())
             }
-            Err(_) => Err(VCFUtilsErrorKind::GenotypeParseError.into()),
+            Err(_) => Err(VCFUtilsError::GenotypeParseError),
         }
     }
 

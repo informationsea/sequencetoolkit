@@ -1,8 +1,7 @@
 use super::super::{BedReader, BedRegion, BedWriter};
 use crate::Command;
+use anyhow::Context;
 use clap::{App, Arg, ArgMatches};
-use failure::ResultExt;
-use sequencetoolkit_common::SequenceToolkitErrorKind;
 use std::io;
 use std::str;
 use std::u64;
@@ -57,23 +56,19 @@ impl Command for ExtendBed {
             )
     }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         let expand_start: u64 = matches
             .value_of("expand-start")
             .or_else(|| matches.value_of("expand"))
             .unwrap()
             .parse::<u64>()
-            .context(SequenceToolkitErrorKind::OtherError(
-                "Cannot parse expand length",
-            ))?;
+            .context("Cannot parse expand length")?;
         let expand_end: u64 = matches
             .value_of("expand-end")
             .or_else(|| matches.value_of("expand"))
             .unwrap()
             .parse::<u64>()
-            .context(SequenceToolkitErrorKind::OtherError(
-                "Cannot parse expand length",
-            ))?;
+            .context("Cannot parse expand length")?;
 
         let mut output = BedWriter::new(io::BufWriter::new(autocompress::create_or_stdout(
             matches.value_of("output"),
@@ -107,7 +102,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_expand() -> Result<(), crate::SequenceToolkitError> {
+    fn test_expand() -> anyhow::Result<()> {
         let app = ExtendBed {};
         let command = app.config_subcommand(App::new("test"));
         let matches = command.get_matches_from(&[
@@ -140,7 +135,7 @@ mod test {
     }
 
     #[test]
-    fn test_expand2() -> Result<(), crate::SequenceToolkitError> {
+    fn test_expand2() -> anyhow::Result<()> {
         let app = ExtendBed {};
         let command = app.config_subcommand(App::new("test"));
         let matches = command.get_matches_from(&[

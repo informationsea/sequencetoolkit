@@ -2,11 +2,11 @@ pub mod annotator;
 mod commands;
 pub mod utils;
 
-pub use annotator::error::{GeneAnnotError, GeneAnnotErrorKind};
+pub use annotator::error::GeneAnnotError;
 use clap::{crate_authors, crate_version, App, AppSettings, ArgMatches};
 use std::env;
 
-use sequencetoolkit_common::{Command, SequenceToolkitError};
+use sequencetoolkit_common::Command;
 
 pub struct GeneAnnot;
 
@@ -26,7 +26,7 @@ impl Command for GeneAnnot {
             .setting(AppSettings::SubcommandRequiredElseHelp)
     }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), SequenceToolkitError> {
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         for one_command in commands::COMMANDS {
             if let Some(matches) = matches.subcommand_matches(one_command.command_name()) {
                 return one_command.run(matches);

@@ -1,5 +1,5 @@
 use super::Command;
-use crate::error::{VCFUtilsError, VCFUtilsErrorKind};
+use crate::error::VCFUtilsError;
 use crate::logic::vcf2table::{
     create_header_line, merge_header_contents, vcf2table, vcf2table_set_data_type, VCF2CSVConfig,
 };
@@ -95,7 +95,7 @@ impl Command for VCF2CSV {
             )
     }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         let output_type = match matches.value_of("datatype").unwrap() {
             "csv" => "csv",
             "tsv" => "tsv",
@@ -204,10 +204,9 @@ pub fn create_config(
     if vcf_files.len() > 1 {
         if !matches.is_present("replace-sample-name") {
             log::error!("--replace-sample-name option is required for multi VCF inputs");
-            return Err(VCFUtilsErrorKind::OtherError(
+            return Err(VCFUtilsError::OtherError(
                 "--replace-sample-name option is required for multi VCF inputs",
-            )
-            .into());
+            ));
         }
     }
 

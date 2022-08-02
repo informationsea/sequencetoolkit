@@ -2,7 +2,6 @@ use bio::io::fasta::IndexedReader;
 use rust_htslib::bam;
 use rust_htslib::bam::record::{Cigar, Record};
 use rust_htslib::bam::HeaderView;
-use sequencetoolkit_common::{SequenceToolkitError, SequenceToolkitErrorKind};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::io::prelude::*;
@@ -73,7 +72,7 @@ impl SequencingErrorCount {
         record: &Record,
         reference: &mut IndexedReader<R>,
         name_to_len: &HashMap<String, usize>,
-    ) -> Result<(), SequenceToolkitError> {
+    ) -> anyhow::Result<()> {
         self.cache_data.clear();
         let seq_name = str::from_utf8(header_view.tid2name(record.tid().try_into().unwrap()))?;
         let cigar_view = record.cigar();
@@ -81,7 +80,7 @@ impl SequencingErrorCount {
         let seq_len: u64 = if let Some(l) = name_to_len.get(seq_name) {
             (*l).try_into().unwrap()
         } else {
-            return Err(SequenceToolkitErrorKind::UnknownSequenceError.into());
+            return Err(anyhow::anyhow!("Unknown sequence name: {}", seq_name));
         };
 
         reference.fetch(
@@ -180,7 +179,7 @@ impl SequencingErrorCount {
         &mut self,
         bam_reader: &mut impl bam::Read,
         reference: &mut IndexedReader<R>,
-    ) -> Result<(), SequenceToolkitError> {
+    ) -> anyhow::Result<()> {
         let header_view = bam_reader.header().clone();
         let mut record = Record::new();
         let name_to_len: HashMap<_, _> = reference
@@ -209,7 +208,7 @@ mod test {
     use rust_htslib::bam::Read as _;
 
     #[test]
-    fn test_add_record() -> Result<(), SequenceToolkitError> {
+    fn test_add_record() -> anyhow::Result<()> {
         let mut count = SequencingErrorCount::new();
         let mut reference_fasta = IndexedReader::from_file(&"./testdata/ref/MT.fa")?;
         let name_to_len: HashMap<_, _> = reference_fasta
@@ -427,7 +426,7 @@ mod test {
     }
 
     #[test]
-    fn test_add_bam() -> Result<(), SequenceToolkitError> {
+    fn test_add_bam() -> anyhow::Result<()> {
         let mut count = SequencingErrorCount::new();
         let mut reference_fasta = IndexedReader::from_file(&"./testdata/ref/MT.fa")?;
         let mut bam = bam::Reader::from_path("./testdata/demo1.bam")?;
@@ -471,7 +470,7 @@ mod test {
     }
 
     #[test]
-    fn test_add_cram() -> Result<(), SequenceToolkitError> {
+    fn test_add_cram() -> anyhow::Result<()> {
         let mut count = SequencingErrorCount::new();
         let mut reference_fasta = IndexedReader::from_file(&"./testdata/ref/MT.fa")?;
         let mut bam = bam::Reader::from_path("./testdata/demo1.cram")?;

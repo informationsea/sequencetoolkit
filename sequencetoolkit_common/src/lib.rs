@@ -1,7 +1,4 @@
 use clap::{crate_authors, crate_version, App, ArgMatches, SubCommand};
-mod error;
-
-pub use error::{SequenceToolkitError, SequenceToolkitErrorKind};
 
 pub trait Command {
     fn cli(&self) -> App<'static, 'static> {
@@ -11,5 +8,5 @@ pub trait Command {
     }
     fn command_name(&self) -> &'static str;
     fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static>;
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), error::SequenceToolkitError>;
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()>;
 }

@@ -2,7 +2,7 @@ use crate::logic::sequencing_error::SequencingErrorCount;
 use bio::io::fasta;
 use clap::{App, Arg, ArgMatches};
 use rust_htslib::bam;
-use sequencetoolkit_common::{Command, SequenceToolkitError};
+use sequencetoolkit_common::Command;
 use std::str;
 
 pub struct SequencingError;
@@ -38,7 +38,7 @@ impl Command for SequencingError {
             )
     }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), SequenceToolkitError> {
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         run(
             matches.value_of("bam").unwrap(),
             matches.value_of("reference").unwrap(),
@@ -52,7 +52,7 @@ fn run(
     bam_path: &str,
     reference_fasta_path: &str,
     output_path: Option<&str>,
-) -> Result<(), SequenceToolkitError> {
+) -> anyhow::Result<()> {
     let writer =
         autocompress::create_or_stdout(output_path, autocompress::CompressionLevel::Default)?;
     let mut csv_writer = csv::WriterBuilder::new().flexible(true).from_writer(writer);
@@ -142,7 +142,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_run() -> Result<(), SequenceToolkitError> {
+    fn test_run() -> anyhow::Result<()> {
         run(
             "./testdata/demo1.cram",
             "./testdata/ref/MT.fa",

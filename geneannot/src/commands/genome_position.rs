@@ -2,7 +2,7 @@ use super::Command;
 use crate::annotator;
 use crate::annotator::hgvs::position::{parse_hgvs_position, ParsedPosition};
 use crate::annotator::models::TranscriptTrait;
-use crate::{GeneAnnotError, GeneAnnotErrorKind};
+use crate::GeneAnnotError;
 use clap::{App, Arg, ArgMatches};
 use flate2::read::MultiGzDecoder;
 use log::info;
@@ -42,7 +42,7 @@ impl Command for GenomePosition {
                     .takes_value(true),
             )
     }
-    fn run(&self, matches: &ArgMatches<'static>) -> Result<(), crate::SequenceToolkitError> {
+    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
         Ok(search_genome_position(
             matches.value_of("db").unwrap(),
             matches.value_of("transcript-name").unwrap(),
@@ -64,7 +64,7 @@ fn search_genome_position(
     if let Some((_, transcript)) = db.transcript(transcript_name) {
         match parsed_position {
             ParsedPosition::GenomePosition(_) => {
-                return Err(GeneAnnotErrorKind::HgvsPositionParseError.into());
+                return Err(GeneAnnotError::HgvsPositionParseError);
             }
             ParsedPosition::CdsPosition(x) => {
                 if let Some(p) = transcript.genome_position_from_cds(x) {
@@ -74,7 +74,7 @@ fn search_genome_position(
                         p + 1
                     );
                 } else {
-                    return Err(GeneAnnotErrorKind::OtherError("No CDS").into());
+                    return Err(GeneAnnotError::OtherError("No CDS"));
                 }
             }
             ParsedPosition::TranscriptPosition(x) => {
@@ -88,6 +88,6 @@ fn search_genome_position(
         }
         Ok(())
     } else {
-        Err(GeneAnnotErrorKind::OtherError("Transcript is not found").into())
+        Err(GeneAnnotError::OtherError("Transcript is not found"))
     }
 }
