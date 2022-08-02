@@ -43,6 +43,13 @@ impl Command for RandomSampling {
                     .required(true)
                     .takes_value(true),
             )
+            .arg(
+                Arg::with_name("threads")
+                    .short("t")
+                    .long("threads")
+                    .takes_value(true)
+                    .help("# of threads to write output file"),
+            )
     }
 
     fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
@@ -55,6 +62,9 @@ impl Command for RandomSampling {
                 .expect("Sampling rate must be float number"),
             matches.value_of("output").unwrap(),
             matches.value_of("reference"),
+            matches
+                .value_of("threads")
+                .map(|x| x.parse().expect("number of threads must be number")),
         )?;
         Ok(())
     }
@@ -65,6 +75,7 @@ fn run(
     sampling_rate: f64,
     output_path: &str,
     reference: Option<&str>,
+    threads: Option<usize>,
 ) -> anyhow::Result<()> {
     if sampling_rate <= 0. {
         return Err(anyhow::anyhow!("sampling rate must be larger than 0").into());
@@ -91,6 +102,9 @@ fn run(
     let mut output_header = bam::Header::from_template(reader.header());
     output_header.push_comment(b"random sampling with sequence toolkit");
     let mut writer = bam::Writer::from_path(output_path, &output_header, output_format)?;
+    if let Some(threads) = threads {
+        writer.set_threads(threads)?;
+    }
 
     let mut decision_result: HashMap<Vec<u8>, bool> = HashMap::new();
 

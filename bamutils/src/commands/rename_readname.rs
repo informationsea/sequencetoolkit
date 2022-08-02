@@ -41,12 +41,20 @@ impl Command for RenameReadname {
             matches.value_of("bam").unwrap(),
             matches.value_of("output").unwrap(),
             matches.value_of("reference"),
+            matches
+                .value_of("threads")
+                .map(|x| x.parse().expect("number of threads must be number")),
         )?;
         Ok(())
     }
 }
 
-fn run(bam_path: &str, output_path: &str, reference: Option<&str>) -> anyhow::Result<()> {
+fn run(
+    bam_path: &str,
+    output_path: &str,
+    reference: Option<&str>,
+    threads: Option<usize>,
+) -> anyhow::Result<()> {
     let mut reader = bam::Reader::from_path(bam_path)?;
     if let Some(reference) = reference {
         reader.set_reference(reference)?;
@@ -64,6 +72,9 @@ fn run(bam_path: &str, output_path: &str, reference: Option<&str>) -> anyhow::Re
     let mut output_header = bam::Header::from_template(reader.header());
     output_header.push_comment(b"rename read names with sequence toolkit");
     let mut writer = bam::Writer::from_path(output_path, &output_header, output_format)?;
+    if let Some(threads) = threads {
+        writer.set_threads(threads)?;
+    }
 
     let mut rename_readname: HashMap<Vec<u8>, u64> = HashMap::new();
     let mut next_readname: u64 = 1;

@@ -129,7 +129,9 @@ dependencies = [
  "bio",
  "clap",
  "csv",
+ "once_cell",
  "rand 0.8.5",
+ "regex",
  "rust-htslib",
  "sequencetoolkit_common",
 ]
