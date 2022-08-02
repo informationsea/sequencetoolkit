@@ -124,6 +124,9 @@ fn run(
     if let Some(threads) = threads {
         writer.set_threads(threads)?;
     }
+    if let Some(reference) = reference {
+        writer.set_reference(reference)?;
+    }
 
     let mut record = bam::Record::new();
     while let Some(r) = reader.read(&mut record) {

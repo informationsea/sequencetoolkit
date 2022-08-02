@@ -75,6 +75,9 @@ fn run(
     if let Some(threads) = threads {
         writer.set_threads(threads)?;
     }
+    if let Some(reference) = reference {
+        writer.set_reference(reference)?;
+    }
 
     let mut rename_readname: HashMap<Vec<u8>, u64> = HashMap::new();
     let mut next_readname: u64 = 1;
