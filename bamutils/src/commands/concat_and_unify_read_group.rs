@@ -7,6 +7,8 @@ use std::io::{prelude::*, BufReader};
 use std::str;
 
 static ID_TAG: Lazy<Regex> = Lazy::new(|| Regex::new(r"\bID:([^\s]+)\b").unwrap());
+static UR_TAG: Lazy<regex::bytes::Regex> =
+    Lazy::new(|| regex::bytes::Regex::new(r"\tUR:[^\s]+/([^\s/]+)\b").unwrap());
 
 pub struct ConcatAndUnifyReadGroup;
 
@@ -113,7 +115,8 @@ fn run(
     while template_header.read_until(b'\n', &mut header_line)? > 0 {
         let line = header_line.strip_suffix(b"\n").unwrap_or(&header_line);
         if line.starts_with(b"@SQ") {
-            header.push_record(&bam::header::HeaderRecord::new(&line[1..]));
+            let new_sg = UR_TAG.replace(line, &b"\tUR:/$1"[..]);
+            header.push_record(&bam::header::HeaderRecord::new(&new_sg[1..]));
         }
         header_line.clear();
     }
