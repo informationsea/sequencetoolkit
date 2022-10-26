@@ -84,12 +84,12 @@ impl Command for VCF2CSV {
                     .long("group-names")
                     .takes_value(true)
                     .multiple(true)
-                    .help("add Group Name column and fill with a value"),
+                    .help("add Group Name column and fill with a value for each input vcf"),
             )
             .arg(
                 Arg::with_name("replace-sample-name")
                     .short("r")
-                    .help("Replace sample name")
+                    .help("Replace sample name for each input vcf")
                     .takes_value(true)
                     .multiple(true),
             )

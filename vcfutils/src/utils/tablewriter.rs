@@ -232,8 +232,17 @@ impl<'a, 'b> TableWriter for XlsxSheetWriter<'a, 'b> {
                     .unwrap_or(XlsxDataType::String)
                 {
                     XlsxDataType::String => {
-                        self.writer
-                            .write_string(self.current_row, i as u16, column, None)?;
+                        if column.len() > 32766 {
+                            self.writer.write_string(
+                                self.current_row,
+                                i as u16,
+                                &format!("{}...", &column[0..32763]),
+                                None,
+                            )?;
+                        } else {
+                            self.writer
+                                .write_string(self.current_row, i as u16, column, None)?;
+                        }
                     }
                     XlsxDataType::Number => {
                         if let Ok(f) = column.parse() {
