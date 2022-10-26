@@ -8,25 +8,25 @@ RUN cargo build --release
 
 FROM debian:buster-slim AS download-bcftools
 RUN apt-get update && apt-get install -y curl lbzip2 bzip2
-ARG BCFTOOLS_VERSION=1.16.1
-RUN curl -OL https://github.com/samtools/bcftools/releases/download/${BCFTOOLS_VERSION}/bcftools-${BCFTOOLS_VERSION}.tar.bz2
+ARG BCFTOOLS_VERSION=1.16
+RUN curl --fail -OL https://github.com/samtools/bcftools/releases/download/${BCFTOOLS_VERSION}/bcftools-${BCFTOOLS_VERSION}.tar.bz2
 RUN tar xf bcftools-${BCFTOOLS_VERSION}.tar.bz2
 
 FROM debian:buster-slim AS download-samtools
 RUN apt-get update && apt-get install -y curl lbzip2 bzip2
-ARG BCFTOOLS_VERSION=1.16.1
-RUN curl -OL https://github.com/samtools/samtools/releases/download/${BCFTOOLS_VERSION}/samtools-${BCFTOOLS_VERSION}.tar.bz2
-RUN tar xf samtools-${BCFTOOLS_VERSION}.tar.bz2
+ARG SAMTOOLS_VERSION=1.16.1
+RUN curl --fail -OL https://github.com/samtools/samtools/releases/download/${SAMTOOLS_VERSION}/samtools-${SAMTOOLS_VERSION}.tar.bz2
+RUN tar xf samtools-${SAMTOOLS_VERSION}.tar.bz2
 
 FROM debian:buster-slim AS download-htslib
 RUN apt-get update && apt-get install -y curl lbzip2 bzip2
-ARG BCFTOOLS_VERSION=1.16.1
-RUN curl -OL https://github.com/samtools/htslib/releases/download/${BCFTOOLS_VERSION}/htslib-${BCFTOOLS_VERSION}.tar.bz2
-RUN tar xf htslib-${BCFTOOLS_VERSION}.tar.bz2
+ARG HTSLIB_VERSION=1.16
+RUN curl --fail -OL https://github.com/samtools/htslib/releases/download/${HTSLIB_VERSION}/htslib-${HTSLIB_VERSION}.tar.bz2
+RUN tar xf htslib-${HTSLIB_VERSION}.tar.bz2
 
 FROM debian:buster-slim AS buildenv-bcftools
 RUN apt-get update && apt-get install -y build-essential ncurses-dev libbz2-dev zlib1g-dev libcurl4-openssl-dev curl liblzma-dev
-ARG BCFTOOLS_VERSION=1.16.1
+ARG BCFTOOLS_VERSION=1.16
 COPY --from=download-bcftools /bcftools-${BCFTOOLS_VERSION} /bcftools-${BCFTOOLS_VERSION}
 WORKDIR /bcftools-${BCFTOOLS_VERSION}
 RUN ./configure --prefix=/usr
@@ -35,18 +35,18 @@ RUN make install DESTDIR=/dest
 
 FROM debian:buster-slim AS buildenv-samtools
 RUN apt-get update && apt-get install -y build-essential ncurses-dev libbz2-dev zlib1g-dev libcurl4-openssl-dev curl liblzma-dev
-ARG BCFTOOLS_VERSION=1.16.1
-COPY --from=download-samtools /samtools-${BCFTOOLS_VERSION} /bcftools-${BCFTOOLS_VERSION}
-WORKDIR /bcftools-${BCFTOOLS_VERSION}
+ARG SAMTOOLS_VERSION=1.16.1
+COPY --from=download-samtools /samtools-${SAMTOOLS_VERSION} /bcftools-${SAMTOOLS_VERSION}
+WORKDIR /bcftools-${SAMTOOLS_VERSION}
 RUN ./configure --prefix=/usr
 RUN make -j4
 RUN make install DESTDIR=/dest
 
 FROM debian:buster-slim AS buildenv-htslib
 RUN apt-get update && apt-get install -y build-essential ncurses-dev libbz2-dev zlib1g-dev libcurl4-openssl-dev curl liblzma-dev
-ARG BCFTOOLS_VERSION=1.16.1
-COPY --from=download-htslib /htslib-${BCFTOOLS_VERSION} /htslib-${BCFTOOLS_VERSION}
-WORKDIR /htslib-${BCFTOOLS_VERSION}
+ARG HTSLIB_VERSION=1.16
+COPY --from=download-htslib /htslib-${HTSLIB_VERSION} /htslib-${HTSLIB_VERSION}
+WORKDIR /htslib-${HTSLIB_VERSION}
 RUN ./configure --prefix=/usr
 RUN make -j4
 RUN make install DESTDIR=/dest
