@@ -701,6 +701,7 @@ pub fn vcf2table<R: BufRead, W: TableWriter>(
     let mut row: Vec<U8Vec> = header_contents.iter().map(|_| Vec::new()).collect();
 
     let mut index: u32 = 0;
+    let mut row_count = 0;
 
     let mut record = VCFRecord::new(vcf_reader.header().clone());
     while vcf_reader.next_record(&mut record)? {
@@ -719,6 +720,7 @@ pub fn vcf2table<R: BufRead, W: TableWriter>(
                     config.canonical_list.as_ref(),
                 )?;
                 writer.write_row_bytes(&row.iter().map(|x| -> &[u8] { &x }).collect::<Vec<_>>())?;
+                row_count += 1;
             }
         } else {
             setup_row(
@@ -732,10 +734,11 @@ pub fn vcf2table<R: BufRead, W: TableWriter>(
                 config.canonical_list.as_ref(),
             )?;
             writer.write_row_bytes(&row.iter().map(|x| -> &[u8] { &x }).collect::<Vec<_>>())?;
+            row_count += 1;
         }
     }
 
-    Ok(index)
+    Ok(row_count)
 }
 
 pub fn merge_header_contents(original: &[HeaderType], new: &[HeaderType]) -> Vec<HeaderType> {
