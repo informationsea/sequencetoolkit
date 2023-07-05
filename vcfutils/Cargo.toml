@@ -16,6 +16,7 @@ autocompress = "0.2"
 vcf = "0.6"
 csv = "1"
 xlsxwriter = { version = "0.4", features=["no-md5", "system-zlib"] }
+libxlsxwriter-sys = "=1.1.4"
 nom = "5"
 itertools = "0.9"
 serde = "1"
