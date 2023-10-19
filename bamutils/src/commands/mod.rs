@@ -3,11 +3,23 @@ mod random_sampling;
 mod rename_readname;
 mod sequencing_error;
 
-use sequencetoolkit_common::Command;
+use clap::Subcommand;
 
-pub(crate) const COMMANDS: &[&dyn Command] = &[
-    &sequencing_error::SequencingError,
-    &random_sampling::RandomSampling,
-    &rename_readname::RenameReadname,
-    &concat_and_unify_read_group::ConcatAndUnifyReadGroup,
-];
+#[derive(Debug, Subcommand)]
+pub enum Commands {
+    SequencingError(sequencing_error::SequencingError),
+    RandomSampling(random_sampling::RandomSampling),
+    RenameReadname(rename_readname::RenameReadname),
+    ConcatAndUnifyReadGroup(concat_and_unify_read_group::ConcatAndUnifyReadGroup),
+}
+
+impl Commands {
+    pub fn run(&self) -> anyhow::Result<()> {
+        match self {
+            Commands::SequencingError(x) => x.run(),
+            Commands::RandomSampling(x) => x.run(),
+            Commands::RenameReadname(x) => x.run(),
+            Commands::ConcatAndUnifyReadGroup(x) => x.run(),
+        }
+    }
+}

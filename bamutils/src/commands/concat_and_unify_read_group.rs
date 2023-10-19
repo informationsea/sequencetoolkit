@@ -1,8 +1,7 @@
-use clap::{App, Arg, ArgMatches};
+use clap::Args;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use rust_htslib::bam::{self, Read};
-use sequencetoolkit_common::Command;
 use std::io::{prelude::*, BufReader};
 use std::str;
 
@@ -10,69 +9,81 @@ static ID_TAG: Lazy<Regex> = Lazy::new(|| Regex::new(r"\bID:([^\s]+)\b").unwrap(
 static UR_TAG: Lazy<regex::bytes::Regex> =
     Lazy::new(|| regex::bytes::Regex::new(r"\tUR:[^\s]+/([^\s/]+)\b").unwrap());
 
-pub struct ConcatAndUnifyReadGroup;
+#[derive(Debug, Args)]
+#[command(about = "Concatenate BAMs and unify read group", version, author)]
+pub struct ConcatAndUnifyReadGroup {
+    #[arg(help = "Input BAM/CRAM file")]
+    inputs: Vec<String>,
+    #[arg(short, long, help = "Reference FASTA")]
+    reference: Option<String>,
+    #[arg(short, long, help = "Output BAM/CRAM/SAM file")]
+    output: String,
+    #[arg(
+        short,
+        long,
+        help = "Read group tag",
+        default_value = "@RG\tID:SAMPLE\tSM:SAMPLE\tLB:SAMPLE\tPL:mixed\tPU:SAMPLE\tCN:mixed"
+    )]
+    read_group: String,
+    #[arg(short, long, help = "# of threads to write output file")]
+    threads: Option<usize>,
+}
 
-impl Command for ConcatAndUnifyReadGroup {
-    fn command_name(&self) -> &'static str {
-        return "cat";
-    }
+impl ConcatAndUnifyReadGroup {
+    // fn command_name(&self) -> &'static str {
+    //     return "cat";
+    // }
 
-    fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-        app.about("Concatenate BAMs and unify read group")
-            .arg(
-                Arg::with_name("inputs")
-                    .index(1)
-                    .takes_value(true)
-                    .multiple(true)
-                    .required(true)
-                    .help("Input BAM/CRAM file"),
-            )
-            .arg(
-                Arg::with_name("reference")
-                    .short("T")
-                    .long("reference")
-                    .takes_value(true)
-                    .help("Reference FASTA"),
-            )
-            .arg(
-                Arg::with_name("output")
-                    .short("o")
-                    .long("output")
-                    .required(true)
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name("read-group")
-                    .short("g")
-                    .long("read-group")
-                    .takes_value(true)
-                    .help("Read group tag")
-                    .default_value(
-                        "@RG\tID:SAMPLE\tSM:SAMPLE\tLB:SAMPLE\tPL:mixed\tPU:SAMPLE\tCN:mixed",
-                    ),
-            )
-            .arg(
-                Arg::with_name("threads")
-                    .short("t")
-                    .long("threads")
-                    .takes_value(true)
-                    .help("# of threads to write output file"),
-            )
-    }
+    // fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
+    //     app.about("Concatenate BAMs and unify read group")
+    //         .arg(
+    //             Arg::with_name("inputs")
+    //                 .index(1)
+    //                 .takes_value(true)
+    //                 .multiple(true)
+    //                 .required(true)
+    //                 .help("Input BAM/CRAM file"),
+    //         )
+    //         .arg(
+    //             Arg::with_name("reference")
+    //                 .short("T")
+    //                 .long("reference")
+    //                 .takes_value(true)
+    //                 .help("Reference FASTA"),
+    //         )
+    //         .arg(
+    //             Arg::with_name("output")
+    //                 .short("o")
+    //                 .long("output")
+    //                 .required(true)
+    //                 .takes_value(true),
+    //         )
+    //         .arg(
+    //             Arg::with_name("read-group")
+    //                 .short("g")
+    //                 .long("read-group")
+    //                 .takes_value(true)
+    //                 .help("Read group tag")
+    //                 .default_value(
+    //                     "@RG\tID:SAMPLE\tSM:SAMPLE\tLB:SAMPLE\tPL:mixed\tPU:SAMPLE\tCN:mixed",
+    //                 ),
+    //         )
+    //         .arg(
+    //             Arg::with_name("threads")
+    //                 .short("t")
+    //                 .long("threads")
+    //                 .takes_value(true)
+    //                 .help("# of threads to write output file"),
+    //         )
+    // }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
+    pub fn run(&self) -> anyhow::Result<()> {
         run(
-            matches
-                .values_of("inputs")
-                .unwrap()
-                .map(|x| x.to_string())
-                .collect(),
-            matches.value_of("output").unwrap(),
-            matches.value_of("reference"),
-            matches.value_of("read-group").unwrap(),
-            matches
-                .value_of("threads")
-                .map(|x| x.parse().expect("number of threads must be number")),
+            self.inputs.clone(),
+            &self.output,
+            self.reference.as_deref(),
+            &self.read_group,
+            self.threads,
         )?;
         Ok(())
     }

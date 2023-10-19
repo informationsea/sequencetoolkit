@@ -7,5 +7,5 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = "2"
+clap = { version = "4", features = ["derive", "cargo"] }
 sequencetoolkit_common = {path = "../sequencetoolkit_common"}

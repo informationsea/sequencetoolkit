@@ -1,49 +1,53 @@
-use clap::{App, Arg, ArgMatches};
+use clap::Args;
 use rust_htslib::bam::{self, Read};
-use sequencetoolkit_common::Command;
 use std::collections::HashMap;
 use std::str;
 
-pub struct RenameReadname;
+#[derive(Debug, Args)]
+#[command(about = "Rename read names", version, author)]
+pub struct RenameReadname {
+    #[arg(help = "Input BAM/CRAM file")]
+    bam: String,
+    #[arg(short = 'T', long, help = "Reference FASTA")]
+    reference: Option<String>,
+    #[arg(short, long, help = "Output BAM/CRAM/SAM file")]
+    output: String,
+    #[arg(short, long, help = "# of threads to write output file")]
+    threads: Option<usize>,
+}
 
-impl Command for RenameReadname {
-    fn command_name(&self) -> &'static str {
-        return "rename-readname";
-    }
+impl RenameReadname {
+    // fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
+    //     app.about("Rename read name")
+    //         .arg(
+    //             Arg::with_name("bam")
+    //                 .index(1)
+    //                 .takes_value(true)
+    //                 .required(true)
+    //                 .help("Input BAM/CRAM file"),
+    //         )
+    //         .arg(
+    //             Arg::with_name("reference")
+    //                 .short("T")
+    //                 .long("reference")
+    //                 .takes_value(true)
+    //                 .help("Reference FASTA"),
+    //         )
+    //         .arg(
+    //             Arg::with_name("output")
+    //                 .short("o")
+    //                 .long("output")
+    //                 .required(true)
+    //                 .takes_value(true),
+    //         )
+    // }
 
-    fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-        app.about("Rename read name")
-            .arg(
-                Arg::with_name("bam")
-                    .index(1)
-                    .takes_value(true)
-                    .required(true)
-                    .help("Input BAM/CRAM file"),
-            )
-            .arg(
-                Arg::with_name("reference")
-                    .short("T")
-                    .long("reference")
-                    .takes_value(true)
-                    .help("Reference FASTA"),
-            )
-            .arg(
-                Arg::with_name("output")
-                    .short("o")
-                    .long("output")
-                    .required(true)
-                    .takes_value(true),
-            )
-    }
-
-    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
+    pub fn run(&self) -> anyhow::Result<()> {
         run(
-            matches.value_of("bam").unwrap(),
-            matches.value_of("output").unwrap(),
-            matches.value_of("reference"),
-            matches
-                .value_of("threads")
-                .map(|x| x.parse().expect("number of threads must be number")),
+            &self.bam,
+            &self.output,
+            self.reference.as_deref(),
+            self.threads,
         )?;
         Ok(())
     }

@@ -1,49 +1,49 @@
 use crate::logic::sequencing_error::SequencingErrorCount;
 use bio::io::fasta;
-use clap::{App, Arg, ArgMatches};
+use clap::Args;
 use rust_htslib::bam;
-use sequencetoolkit_common::Command;
 use std::str;
 
-pub struct SequencingError;
+#[derive(Debug, Args)]
+#[command(about = "Count sequencing error", version, author)]
+pub struct SequencingError {
+    #[arg(help = "Input BAM/CRAM file")]
+    bam: String,
+    #[arg(short = 'T', long, help = "Reference FASTA")]
+    reference: String,
+    #[arg(short, long, help = "Output CSV file")]
+    output: Option<String>,
+}
 
-impl Command for SequencingError {
-    fn command_name(&self) -> &'static str {
-        return "sequencing-error";
-    }
+impl SequencingError {
+    // fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
+    //     app.about("Count sequencing error")
+    //         .arg(
+    //             Arg::with_name("bam")
+    //                 .index(1)
+    //                 .takes_value(true)
+    //                 .required(true)
+    //                 .help("Input BAM/CRAM file"),
+    //         )
+    //         .arg(
+    //             Arg::with_name("reference")
+    //                 .short("r")
+    //                 .long("reference")
+    //                 .alias("T")
+    //                 .required(true)
+    //                 .takes_value(true)
+    //                 .help("Reference FASTA"),
+    //         )
+    //         .arg(
+    //             Arg::with_name("output")
+    //                 .short("o")
+    //                 .long("output")
+    //                 .takes_value(true),
+    //         )
+    // }
 
-    fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-        app.about("Count sequencing error")
-            .arg(
-                Arg::with_name("bam")
-                    .index(1)
-                    .takes_value(true)
-                    .required(true)
-                    .help("Input BAM/CRAM file"),
-            )
-            .arg(
-                Arg::with_name("reference")
-                    .short("r")
-                    .long("reference")
-                    .alias("T")
-                    .required(true)
-                    .takes_value(true)
-                    .help("Reference FASTA"),
-            )
-            .arg(
-                Arg::with_name("output")
-                    .short("o")
-                    .long("output")
-                    .takes_value(true),
-            )
-    }
-
-    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
-        run(
-            matches.value_of("bam").unwrap(),
-            matches.value_of("reference").unwrap(),
-            matches.value_of("output"),
-        )?;
+    pub fn run(&self) -> anyhow::Result<()> {
+        run(&self.bam, &self.reference, self.output.as_deref())?;
         Ok(())
     }
 }

@@ -1,79 +1,100 @@
-use super::Command;
 use crate::logic::replace_contig::replace_contig;
 use crate::utils;
-use clap::{App, Arg, ArgMatches};
+use anyhow::Context;
+use clap::Args;
 use std::collections::HashMap;
 use std::io::BufReader;
 use vcf::U8Vec;
 
-pub struct ReplaceContig;
+#[derive(Debug, Args)]
+#[command(about = "Replace contig", version, author)]
+pub struct ReplaceContig {
+    #[arg(help = "Input VCF file")]
+    input: Option<String>,
+    #[arg(short, long, help = "Output VCF")]
+    output: Option<String>,
+    #[arg(short, long, help = "contig mapping file (csv/tsv)")]
+    contig_mapping: Option<String>,
+    #[arg(
+        short = 'e',
+        long,
+        help = "Replace RefSeq contig name with chromosome number (for dbSNP 152/153)"
+    )]
+    replace_refseq: bool,
+    #[arg(short, long, help = "add \"chr\" prefix to human chromosomes")]
+    add_chr_prefix: bool,
+    #[arg(short, long, help = "remove \"chr\" prefix to human chromosomes")]
+    remove_chr_prefix: bool,
+}
 
-impl Command for ReplaceContig {
-    fn command_name(&self) -> &'static str {
-        "replace-contig"
-    }
-    fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-        app.about("Replace contig")
-            .arg(
-                Arg::with_name("input")
-                    .index(1)
-                    .takes_value(true)
-                    .help("Input VCF file"),
-            )
-            .arg(
-                Arg::with_name("output")
-                    .short("o")
-                    .long("output")
-                    .takes_value(true)
-                    .help("Output file"),
-            )
-            .arg(
-                Arg::with_name("contig-mapping")
-                    .short("m")
-                    .long("contig-mapping")
-                    .takes_value(true)
-                    .help("contig mapping file (csv/tsv)")
-                    .required_unless_one(&[
-                        "replace-refseq",
-                        "add-chr-prefix",
-                        "remove-chr-prefix",
-                    ]),
-            )
-            .arg(
-                Arg::with_name("replace-refseq")
-                    .short("e")
-                    .long("replace-refseq")
-                    .help("Replace RefSeq contig name with chromosome number (for dbSNP 152/153)"),
-            )
-            .arg(
-                Arg::with_name("add-chr-prefix")
-                    .short("a")
-                    .long("add-chr-prefix")
-                    .help("add \"chr\" prefix to human chromosomes"),
-            )
-            .arg(
-                Arg::with_name("remove-chr-prefix")
-                    .short("r")
-                    .long("remove-chr-prefix")
-                    .help("remove \"chr\" prefix from human chromosomes"),
-            )
-    }
+impl ReplaceContig {
+    // fn command_name(&self) -> &'static str {
+    //     "replace-contig"
+    // }
+    // fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
+    //     app.about("Replace contig")
+    //         .arg(
+    //             Arg::with_name("input")
+    //                 .index(1)
+    //                 .takes_value(true)
+    //                 .help("Input VCF file"),
+    //         )
+    //         .arg(
+    //             Arg::with_name("output")
+    //                 .short("o")
+    //                 .long("output")
+    //                 .takes_value(true)
+    //                 .help("Output file"),
+    //         )
+    //         .arg(
+    //             Arg::with_name("contig-mapping")
+    //                 .short("m")
+    //                 .long("contig-mapping")
+    //                 .takes_value(true)
+    //                 .help("contig mapping file (csv/tsv)")
+    //                 .required_unless_one(&[
+    //                     "replace-refseq",
+    //                     "add-chr-prefix",
+    //                     "remove-chr-prefix",
+    //                 ]),
+    //         )
+    //         .arg(
+    //             Arg::with_name("replace-refseq")
+    //                 .short("e")
+    //                 .long("replace-refseq")
+    //                 .help("Replace RefSeq contig name with chromosome number (for dbSNP 152/153)"),
+    //         )
+    //         .arg(
+    //             Arg::with_name("add-chr-prefix")
+    //                 .short("a")
+    //                 .long("add-chr-prefix")
+    //                 .help("add \"chr\" prefix to human chromosomes"),
+    //         )
+    //         .arg(
+    //             Arg::with_name("remove-chr-prefix")
+    //                 .short("r")
+    //                 .long("remove-chr-prefix")
+    //                 .help("remove \"chr\" prefix from human chromosomes"),
+    //         )
+    // }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
-        let mut reader = BufReader::new(autocompress::open_or_stdin(matches.value_of("input"))?);
+    pub fn run(&self) -> anyhow::Result<()> {
+        let mut reader = BufReader::new(autocompress::open_or_stdin(self.input.as_deref())?);
         let mut writer = autocompress::create_or_stdout(
-            matches.value_of("output"),
+            self.output.as_deref(),
             autocompress::CompressionLevel::Default,
         )?;
-        let mapping = if matches.is_present("replace-refseq") {
+        let mapping = if self.replace_refseq {
             refseq_replace()
-        } else if matches.is_present("add-chr-prefix") {
+        } else if self.add_chr_prefix {
             add_chr()
-        } else if matches.is_present("remove-chr-prefix") {
+        } else if self.remove_chr_prefix {
             remove_chr()
         } else {
             utils::load_mapping(utils::auto_csv_reader_from_path(
-                matches.value_of("contig-mapping").unwrap(),
+                self.contig_mapping
+                    .as_deref()
+                    .context("No contig mapping file")?,
                 false,
             )?)?
             .mapping

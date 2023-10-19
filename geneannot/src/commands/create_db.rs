@@ -1,64 +1,92 @@
-use super::Command;
 use bio::io::fasta::IndexedReader;
-use clap::{App, Arg, ArgMatches};
+use clap::Args;
 use flate2::{write::GzEncoder, Compression};
 use std::fs::File;
 use std::path::Path;
 
-pub struct CreateDb;
-
-impl Command for CreateDb {
-    fn command_name(&self) -> &'static str {
-        "create-db"
-    }
-    fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-        app.about("Create gene database from refGene format file")
-            .arg(
-                Arg::with_name("db")
-                    .help("refGene format database (INPUT / plain text or gzip)")
-                    .short("r")
-                    .long("refgene")
-                    .required(true)
-                    .takes_value(true)
-                    .long_help(
-                        r#"refGene format database (INPUT / plain text or gzip)
+#[derive(Debug, Args)]
+#[command(
+    about = "Create geneannot database from refGene format database",
+    version,
+    author
+)]
+pub struct CreateDb {
+    #[arg(
+        help = "refGene format database (INPUT / plain text or gzip)",
+        long_help = r#"refGene format database (INPUT / plain text or gzip)
 example file URL:
-  - http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/refGene.txt.gz
-  - http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV33.txt.gz
-"#,
-                    ),
-            )
-            .arg(
-                Arg::with_name("output")
-                    .help("database output path (OUTPUT / gzip BINCODE)")
-                    .short("o")
-                    .long("output")
-                    .required(true)
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name("fasta")
-                    .help("Reference FASTA file (INPUT / indexed FASTA)")
-                    .short("f")
-                    .long("reference")
-                    .required(true)
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name("reference-name")
-                    .help("Reference name")
-                    .short("n")
-                    .long("reference-name")
-                    .takes_value(true),
-            )
-    }
+- http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/refGene.txt.gz
+- http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV33.txt.gz"#
+    )]
+    db: String,
+    #[arg(
+        short = 'o',
+        long,
+        help = "database output path (OUTPUT / gzip BINCODE)"
+    )]
+    output: String,
+    #[arg(
+        short = 'f',
+        long,
+        help = "Reference FASTA file (INPUT / indexed FASTA)"
+    )]
+    fasta: String,
+    #[arg(short = 'n', long, help = "Reference name")]
+    reference_name: Option<String>,
+}
 
-    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
+impl CreateDb {
+    //     fn command_name(&self) -> &'static str {
+    //         "create-db"
+    //     }
+    //     fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
+    //         app.about("Create gene database from refGene format file")
+    //             .arg(
+    //                 Arg::with_name("db")
+    //                     .help("refGene format database (INPUT / plain text or gzip)")
+    //                     .short("r")
+    //                     .long("refgene")
+    //                     .required(true)
+    //                     .takes_value(true)
+    //                     .long_help(
+    //                         r#"refGene format database (INPUT / plain text or gzip)
+    // example file URL:
+    //   - http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/refGene.txt.gz
+    //   - http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV33.txt.gz
+    // "#,
+    //                     ),
+    //             )
+    //             .arg(
+    //                 Arg::with_name("output")
+    //                     .help("database output path (OUTPUT / gzip BINCODE)")
+    //                     .short("o")
+    //                     .long("output")
+    //                     .required(true)
+    //                     .takes_value(true),
+    //             )
+    //             .arg(
+    //                 Arg::with_name("fasta")
+    //                     .help("Reference FASTA file (INPUT / indexed FASTA)")
+    //                     .short("f")
+    //                     .long("reference")
+    //                     .required(true)
+    //                     .takes_value(true),
+    //             )
+    //             .arg(
+    //                 Arg::with_name("reference-name")
+    //                     .help("Reference name")
+    //                     .short("n")
+    //                     .long("reference-name")
+    //                     .takes_value(true),
+    //             )
+    //     }
+
+    pub fn run(&self) -> anyhow::Result<()> {
         Ok(create_db(
-            matches.value_of("db").unwrap(),
-            matches.value_of("output").unwrap(),
-            matches.value_of("fasta").unwrap(),
-            matches.value_of("reference-name"),
+            &self.db,
+            &self.output,
+            &self.fasta,
+            self.reference_name.as_deref(),
         )?)
     }
 }

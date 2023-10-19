@@ -1,44 +1,26 @@
-use super::Command;
-use clap::{App, Arg, ArgMatches};
+use clap::Args;
 use std::io::{self, BufRead};
-use std::str;
 
-pub struct RemoveNonStandardHeader;
+#[derive(Debug, Args)]
+#[command(
+    about = "Remove non standard header and reorder header",
+    version,
+    author
+)]
+pub struct RemoveNonStandardHeader {
+    #[arg(help = "Input VCF file")]
+    input: Option<String>,
+    #[arg(short, long, help = "Output VCF")]
+    output: Option<String>,
+    #[arg(short, long, help = "Add additional header line")]
+    additional: Option<Vec<String>>,
+}
 
-impl Command for RemoveNonStandardHeader {
-    fn command_name(&self) -> &'static str {
-        "remove-non-standard-header"
-    }
-    fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-        app.about("Remove non standard header and reorder header")
-            .arg(
-                Arg::with_name("input")
-                    .index(1)
-                    .takes_value(true)
-                    .help("Input VCF file"),
-            )
-            .arg(
-                Arg::with_name("output")
-                    .short("o")
-                    .long("output")
-                    .takes_value(true)
-                    .help("Output CSV"),
-            )
-            .arg(
-                Arg::with_name("additional")
-                    .short("a")
-                    .long("additional-header")
-                    .takes_value(true)
-                    .multiple(true)
-                    .help("Add additional header line"),
-            )
-    }
-
-    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
-        let mut reader =
-            io::BufReader::new(autocompress::open_or_stdin(matches.value_of("input"))?);
+impl RemoveNonStandardHeader {
+    pub fn run(&self) -> anyhow::Result<()> {
+        let mut reader = io::BufReader::new(autocompress::open_or_stdin(self.input.as_deref())?);
         let mut writer = autocompress::create_or_stdout(
-            matches.value_of("output"),
+            self.input.as_deref(),
             autocompress::CompressionLevel::Default,
         )?;
 
@@ -77,7 +59,7 @@ impl Command for RemoveNonStandardHeader {
                     vcf::VCFHeaderContent::Other { .. } => (),
                 }
             } else if line.starts_with(b"#") {
-                if let Some(additional) = matches.values_of("additional") {
+                if let Some(additional) = self.additional.as_ref() {
                     for one in header_file_format {
                         writer.write_all(&one)?;
                     }

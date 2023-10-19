@@ -1,36 +1,34 @@
-use clap::{crate_authors, crate_version, App, AppSettings, ArgMatches};
+use clap::Args;
 
 pub mod commands;
 pub mod error;
 pub mod logic;
 pub mod utils;
 
-use sequencetoolkit_common::Command;
+#[derive(Debug, Args)]
+#[command(about = "VCF Utilities", version, author)]
+pub struct VCFUtils {
+    #[command(subcommand)]
+    commands: commands::Commands,
+}
 
-pub struct VCFUtils;
+impl VCFUtils {
+    // fn command_name(&self) -> &'static str {
+    //     "vcfutils"
+    // }
+    // fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
+    //     app.about("VCF Utilities")
+    //         .version(crate_version!())
+    //         .author(crate_authors!())
+    //         .subcommands(commands::COMMANDS.iter().map(|x| {
+    //             x.cli()
+    //                 .setting(AppSettings::ColorAuto)
+    //                 .setting(AppSettings::ColoredHelp)
+    //         }))
+    //         .setting(AppSettings::SubcommandRequiredElseHelp)
+    // }
 
-impl Command for VCFUtils {
-    fn command_name(&self) -> &'static str {
-        "vcfutils"
-    }
-    fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-        app.about("VCF Utilities")
-            .version(crate_version!())
-            .author(crate_authors!())
-            .subcommands(commands::COMMANDS.iter().map(|x| {
-                x.cli()
-                    .setting(AppSettings::ColorAuto)
-                    .setting(AppSettings::ColoredHelp)
-            }))
-            .setting(AppSettings::SubcommandRequiredElseHelp)
-    }
-
-    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
-        for one_command in commands::COMMANDS {
-            if let Some(matches) = matches.subcommand_matches(one_command.command_name()) {
-                return one_command.run(matches);
-            }
-        }
-        unreachable!()
+    pub fn run(&self) -> anyhow::Result<()> {
+        self.commands.run()
     }
 }

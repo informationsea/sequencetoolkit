@@ -1,69 +1,46 @@
-use super::Command;
 use crate::error::VCFUtilsError;
 use crate::logic::replace_sample::replace_sample;
 use crate::utils::{self, Mapping};
-use clap::{App, Arg, ArgMatches};
+use clap::Args;
 use rand::prelude::*;
 use std::collections::HashMap;
 use std::io::BufRead;
 use vcf::{U8Vec, VCFReader};
 
-pub struct ReplaceSampleName;
+#[derive(Args, Debug)]
+#[command(about = "Replace sample names", version, author)]
+pub struct ReplaceSampleName {
+    #[arg(help = "Input VCF file")]
+    input: Option<String>,
+    #[arg(short, long, help = "Output VCF")]
+    output: Option<String>,
+    #[arg(
+        short,
+        long,
+        help = "sample name mapping file (csv/tsv)",
+        long_help = "sample name mapping file (csv/tsv). First column should be names to replace and second column should be new names. No header is required.",
+        required_unless_present = "sequential"
+    )]
+    mapping: Option<String>,
+    #[arg(short, long, help = "Shuffle sample order")]
+    random: bool,
+    #[arg(short, long, help = "Rename sample as \"sample_1\", \"sample_2\", ...")]
+    sequential: bool,
+}
 
-impl Command for ReplaceSampleName {
-    fn command_name(&self) -> &'static str {
-        "replace-sample-names"
-    }
-    fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-        app.about("Replace sample names")
-            .arg(
-                Arg::with_name("input")
-                    .index(1)
-                    .takes_value(true)
-                    .help("Input VCF file"),
-            )
-            .arg(
-                Arg::with_name("output")
-                    .short("o")
-                    .long("output")
-                    .takes_value(true)
-                    .help("Output VCF file"),
-            )
-            .arg(
-                Arg::with_name("mapping")
-                    .short("m")
-                    .long("sample-mapping")
-                    .takes_value(true)
-                    .help("sample name mapping file (csv/tsv)")
-                    .long_help("sample name mapping file (csv/tsv). First column should be names to replace and second column should be new names. No header is required.")
-                    .required_unless_one(&["sequential"]),
-            )
-            .arg(
-                Arg::with_name("random")
-                    .short("r")
-                    .long("random")
-                    .help("Shuffle sample order"),
-            )
-            .arg(
-                Arg::with_name("sequential")
-                    .short("s")
-                    .long("rename-sequential")
-                    .help("Rename sample as \"sample_1\", \"sample_2\", ..."),
-            )
-    }
-
-    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
-        let mut reader = utils::open_vcf_from_path(matches.value_of("input"))?;
+impl ReplaceSampleName {
+    pub fn run(&self) -> anyhow::Result<()> {
+        let mut reader = utils::open_vcf_from_path(self.input.as_deref())?;
         let mut writer = autocompress::create_or_stdout(
-            matches.value_of("output"),
+            self.output.as_deref(),
             autocompress::CompressionLevel::Default,
         )?;
 
         let (mapping, order): (HashMap<U8Vec, U8Vec>, Vec<U8Vec>) = create_sample_mapping(
             &reader,
-            matches.value_of("mapping"),
-            matches.is_present("sequential"),
-            matches.is_present("random"),
+            self.mapping.as_deref(),
+            self.sequential,
+            self.random,
         )?;
         replace_sample(&mut reader, &mut writer, &mapping, &order)?;
         Ok(())

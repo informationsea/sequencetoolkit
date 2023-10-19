@@ -1,81 +1,90 @@
 use super::super::{BedReader, BedRegion, BedWriter};
-use crate::Command;
-use anyhow::Context;
-use clap::{App, Arg, ArgMatches};
+use clap::Args;
 use std::io;
-use std::str;
 use std::u64;
 
-pub struct ExtendBed;
+#[derive(Debug, Args)]
+pub struct ExtendBed {
+    #[arg(help = "Input BED files")]
+    input: Option<String>,
+    #[arg(short, long, help = "Output BED")]
+    output: Option<String>,
+    #[arg(short = 'e', long, help = "Expand length", conflicts_with_all= ["expand_start", "expand_end"])]
+    expand: Option<u64>,
+    #[arg(
+        short = 's',
+        long,
+        help = "Expand start length",
+        requires = "expand_end"
+    )]
+    expand_start: Option<u64>,
+    #[arg(
+        short = 'n',
+        long,
+        help = "Expand end length",
+        requires = "expand_start"
+    )]
+    expand_end: Option<u64>,
+}
 
-impl Command for ExtendBed {
-    fn command_name(&self) -> &'static str {
-        "expand"
-    }
+impl ExtendBed {
+    // fn command_name(&self) -> &'static str {
+    //     "expand"
+    // }
 
-    fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-        app.about("Extend BED regions")
-            .arg(
-                Arg::with_name("input")
-                    .index(1)
-                    .takes_value(true)
-                    .help("Input BED files"),
-            )
-            .arg(
-                Arg::with_name("output")
-                    .short("o")
-                    .long("output")
-                    .takes_value(true)
-                    .help("Output Text"),
-            )
-            .arg(
-                Arg::with_name("expand")
-                    .short("e")
-                    .long("expand")
-                    .takes_value(true)
-                    .help("Expand length")
-                    .required_unless("expand-start"),
-            )
-            .arg(
-                Arg::with_name("expand-start")
-                    .short("s")
-                    .long("expand-start")
-                    .takes_value(true)
-                    .help("Expand start position")
-                    .conflicts_with("expand")
-                    .requires("expand-end"),
-            )
-            .arg(
-                Arg::with_name("expand-end")
-                    .short("n")
-                    .long("expand-end")
-                    .takes_value(true)
-                    .help("Expand end position")
-                    .conflicts_with("expand")
-                    .requires("expand-start"),
-            )
-    }
+    // fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
+    //     app.about("Extend BED regions")
+    //         .arg(
+    //             Arg::with_name("input")
+    //                 .index(1)
+    //                 .takes_value(true)
+    //                 .help("Input BED files"),
+    //         )
+    //         .arg(
+    //             Arg::with_name("output")
+    //                 .short("o")
+    //                 .long("output")
+    //                 .takes_value(true)
+    //                 .help("Output Text"),
+    //         )
+    //         .arg(
+    //             Arg::with_name("expand")
+    //                 .short("e")
+    //                 .long("expand")
+    //                 .takes_value(true)
+    //                 .help("Expand length")
+    //                 .required_unless("expand-start"),
+    //         )
+    //         .arg(
+    //             Arg::with_name("expand-start")
+    //                 .short("s")
+    //                 .long("expand-start")
+    //                 .takes_value(true)
+    //                 .help("Expand start position")
+    //                 .conflicts_with("expand")
+    //                 .requires("expand-end"),
+    //         )
+    //         .arg(
+    //             Arg::with_name("expand-end")
+    //                 .short("n")
+    //                 .long("expand-end")
+    //                 .takes_value(true)
+    //                 .help("Expand end position")
+    //                 .conflicts_with("expand")
+    //                 .requires("expand-start"),
+    //         )
+    // }
 
-    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
-        let expand_start: u64 = matches
-            .value_of("expand-start")
-            .or_else(|| matches.value_of("expand"))
-            .unwrap()
-            .parse::<u64>()
-            .context("Cannot parse expand length")?;
-        let expand_end: u64 = matches
-            .value_of("expand-end")
-            .or_else(|| matches.value_of("expand"))
-            .unwrap()
-            .parse::<u64>()
-            .context("Cannot parse expand length")?;
+    pub fn run(&self) -> anyhow::Result<()> {
+        let expand_start: u64 = self.expand_start.unwrap_or_else(|| self.expand.unwrap());
+        let expand_end: u64 = self.expand_end.unwrap_or_else(|| self.expand.unwrap());
 
         let mut output = BedWriter::new(io::BufWriter::new(autocompress::create_or_stdout(
-            matches.value_of("output"),
+            self.output.as_deref(),
             autocompress::CompressionLevel::Default,
         )?));
         let mut input = BedReader::new(io::BufReader::new(autocompress::open_or_stdin(
-            matches.value_of("input"),
+            self.input.as_deref(),
         )?));
         let mut record = BedRegion::new();
 
@@ -101,11 +110,17 @@ impl Command for ExtendBed {
 mod test {
     use super::*;
 
+    use clap::Parser;
+
+    #[derive(Debug, Parser)]
+    struct Cli {
+        #[command(flatten)]
+        extend_bed: ExtendBed,
+    }
+
     #[test]
     fn test_expand() -> anyhow::Result<()> {
-        let app = ExtendBed {};
-        let command = app.config_subcommand(App::new("test"));
-        let matches = command.get_matches_from(&[
+        let cli = Cli::parse_from(&[
             "command",
             "-o",
             "../target/expanded.bed",
@@ -113,7 +128,7 @@ mod test {
             "10",
             "testfiles/sample1.bed",
         ]);
-        app.run(&matches)?;
+        cli.extend_bed.run()?;
 
         let mut reader = BedReader::new(io::BufReader::new(autocompress::open(
             "../target/expanded.bed",
@@ -136,9 +151,7 @@ mod test {
 
     #[test]
     fn test_expand2() -> anyhow::Result<()> {
-        let app = ExtendBed {};
-        let command = app.config_subcommand(App::new("test"));
-        let matches = command.get_matches_from(&[
+        let cli = Cli::parse_from(&[
             "command",
             "-o",
             "../target/expanded2.bed",
@@ -148,7 +161,7 @@ mod test {
             "100",
             "testfiles/sample1.bed",
         ]);
-        app.run(&matches)?;
+        cli.extend_bed.run()?;
 
         let mut reader = BedReader::new(io::BufReader::new(autocompress::open(
             "../target/expanded2.bed",

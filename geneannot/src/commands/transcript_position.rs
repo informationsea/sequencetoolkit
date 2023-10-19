@@ -1,50 +1,66 @@
-use super::Command;
 use crate::annotator::models::TranscriptTrait;
 use crate::GeneAnnotError;
-use clap::{App, Arg, ArgMatches};
+use clap::Args;
 use flate2::read::MultiGzDecoder;
 use log::info;
 use std::fs::File;
 use std::io::BufReader;
 
-pub struct TranscriptPosition;
+#[derive(Debug, Args)]
+#[command(
+    about = "Convert CDS/transcript position into genome position",
+    version,
+    author
+)]
+pub struct TranscriptPosition {
+    #[arg(
+        help = "geneannot database (INPUT / gzip BINCODE)",
+        short = 'd',
+        long = "database"
+    )]
+    db: String,
+    #[arg(help = "Genome position", short = 'p', long = "position")]
+    position: String,
+    #[arg(help = "Chromosome name", short = 'c', long = "chromosome")]
+    chromosome: String,
+}
 
-impl Command for TranscriptPosition {
-    fn command_name(&self) -> &'static str {
-        "transcript-position"
-    }
-    fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-        app.about("Convert CDS/transcript position into genome position")
-            .arg(
-                Arg::with_name("db")
-                    .help("geneannot database (INPUT / gzip BINCODE)")
-                    .short("d")
-                    .long("database")
-                    .required(true)
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name("position")
-                    .help("Genome position")
-                    .short("p")
-                    .long("position")
-                    .required(true)
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name("chromosome")
-                    .help("Chromosome name")
-                    .short("c")
-                    .long("chromosome")
-                    .required(true)
-                    .takes_value(true),
-            )
-    }
-    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
+impl TranscriptPosition {
+    // fn command_name(&self) -> &'static str {
+    //     "transcript-position"
+    // }
+    // fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
+    //     app.about("Convert CDS/transcript position into genome position")
+    //         .arg(
+    //             Arg::with_name("db")
+    //                 .help("geneannot database (INPUT / gzip BINCODE)")
+    //                 .short("d")
+    //                 .long("database")
+    //                 .required(true)
+    //                 .takes_value(true),
+    //         )
+    //         .arg(
+    //             Arg::with_name("position")
+    //                 .help("Genome position")
+    //                 .short("p")
+    //                 .long("position")
+    //                 .required(true)
+    //                 .takes_value(true),
+    //         )
+    //         .arg(
+    //             Arg::with_name("chromosome")
+    //                 .help("Chromosome name")
+    //                 .short("c")
+    //                 .long("chromosome")
+    //                 .required(true)
+    //                 .takes_value(true),
+    //         )
+    // }
+    pub fn run(&self) -> anyhow::Result<()> {
         Ok(search_transcript_position(
-            matches.value_of("db").unwrap(),
-            matches.value_of("chromosome").unwrap(),
-            matches.value_of("position").unwrap(),
+            &self.db,
+            &self.chromosome,
+            &self.position,
         )?)
     }
 }

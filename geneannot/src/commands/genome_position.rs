@@ -1,52 +1,42 @@
-use super::Command;
 use crate::annotator;
 use crate::annotator::hgvs::position::{parse_hgvs_position, ParsedPosition};
 use crate::annotator::models::TranscriptTrait;
 use crate::GeneAnnotError;
-use clap::{App, Arg, ArgMatches};
+use clap::Args;
 use flate2::read::MultiGzDecoder;
 use log::info;
 use std::fs::File;
 use std::io::BufReader;
 
-pub struct GenomePosition;
+#[derive(Debug, Args)]
+#[command(
+    about = "Convert CDS/transcript position into genome position",
+    version,
+    author
+)]
+pub struct GenomePosition {
+    #[arg(
+        help = "geneannot database (INPUT / gzip BINCODE)",
+        short = 'd',
+        long = "database"
+    )]
+    db: String,
+    #[arg(
+        help = "CDS or transcript position in HGVS Sequence Variant Nomenclature",
+        short = 'p',
+        long = "position"
+    )]
+    position: String,
+    #[arg(help = "Transcript name", short = 't', long = "transcript-name")]
+    transcript_name: String,
+}
 
-impl Command for GenomePosition {
-    fn command_name(&self) -> &'static str {
-        "genome-position"
-    }
-    fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-        app.about("Convert genome position into CDS/transcript position")
-            .arg(
-                Arg::with_name("db")
-                    .help("geneannot database (INPUT / gzip BINCODE)")
-                    .short("d")
-                    .long("database")
-                    .required(true)
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name("position")
-                    .help("CDS or transcript position in HGVS Sequence Variant Nomenclature")
-                    .short("p")
-                    .long("position")
-                    .required(true)
-                    .takes_value(true),
-            )
-            .arg(
-                Arg::with_name("transcript-name")
-                    .help("Transcript name")
-                    .short("t")
-                    .long("transcript")
-                    .required(true)
-                    .takes_value(true),
-            )
-    }
-    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
+impl GenomePosition {
+    pub fn run(&self) -> anyhow::Result<()> {
         Ok(search_genome_position(
-            matches.value_of("db").unwrap(),
-            matches.value_of("transcript-name").unwrap(),
-            matches.value_of("position").unwrap(),
+            &self.db,
+            &self.transcript_name,
+            &self.position,
         )?)
     }
 }

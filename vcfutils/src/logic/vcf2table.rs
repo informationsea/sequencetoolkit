@@ -1034,7 +1034,7 @@ mod test {
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
-        let workbook = xlsxwriter::Workbook::new("../target/table-split-multi.xlsx");
+        let workbook = xlsxwriter::Workbook::new("../target/table-split-multi.xlsx")?;
         let mut sheet = workbook.add_worksheet(None)?;
         let mut writer = tablewriter::XlsxSheetWriter::new(&mut sheet);
         let header_contents = create_header_line(&vcf_reader.header(), &config);
@@ -1071,7 +1071,7 @@ mod test {
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
-        let workbook = xlsxwriter::Workbook::new("../target/table-no-split.xlsx");
+        let workbook = xlsxwriter::Workbook::new("../target/table-no-split.xlsx")?;
         let mut sheet = workbook.add_worksheet(None)?;
         let mut writer = tablewriter::XlsxSheetWriter::new(&mut sheet);
         let header_contents = create_header_line(&vcf_reader.header(), &config);
@@ -1108,7 +1108,7 @@ mod test {
         };
         let mut vcf_data_reader = BufReader::new(&vcf_data[..]);
         let mut vcf_reader = vcf::VCFReader::new(&mut vcf_data_reader)?;
-        let workbook = xlsxwriter::Workbook::new("../target/table-split-multi-with-group.xlsx");
+        let workbook = xlsxwriter::Workbook::new("../target/table-split-multi-with-group.xlsx")?;
         let mut sheet = workbook.add_worksheet(None)?;
         let mut writer = tablewriter::XlsxSheetWriter::new(&mut sheet);
         let header_contents = create_header_line(&vcf_reader.header(), &config);

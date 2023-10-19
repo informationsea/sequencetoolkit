@@ -1,36 +1,38 @@
-use clap::{crate_authors, crate_version, App, AppSettings, Arg};
-
-use sequencetoolkit_common::Command;
+use clap::{Parser, Subcommand};
 use std::env;
 
-pub(crate) const COMMANDS: &[&dyn Command] = &[
-    &vcfutils::VCFUtils,
-    &geneannot::GeneAnnot,
-    &bedutils::BEDUtils,
-    &bamutils::BamUtils,
-];
+#[derive(Debug, Subcommand)]
+pub enum Commands {
+    BamUtils(bamutils::BamUtils),
+    BedUtils(bedutils::BEDUtils),
+    GeneAnnot(geneannot::GeneAnnot),
+    VcfUtils(vcfutils::VCFUtils),
+}
 
-fn main() {
-    let matches = App::new("sequence toolkit")
-        .version(crate_version!())
-        .author(crate_authors!())
-        .arg(
-            Arg::with_name("verbose")
-                .short("v")
-                .long("verbose")
-                .multiple(true),
-        )
-        .subcommands(COMMANDS.iter().map(|x| {
-            x.cli()
-                .setting(AppSettings::ColorAuto)
-                .setting(AppSettings::ColoredHelp)
-        }))
-        .setting(AppSettings::SubcommandRequiredElseHelp)
-        .setting(AppSettings::ColorAuto)
-        .setting(AppSettings::ColoredHelp)
-        .get_matches();
+impl Commands {
+    pub fn run(&self) -> anyhow::Result<()> {
+        match self {
+            Commands::BamUtils(x) => x.run(),
+            Commands::BedUtils(x) => x.run(),
+            Commands::GeneAnnot(x) => x.run(),
+            Commands::VcfUtils(x) => x.run(),
+        }
+    }
+}
 
-    match matches.occurrences_of("verbose") {
+#[derive(Debug, Parser)]
+#[command(version, about = "sequence toolkit")]
+pub struct Cli {
+    #[arg(short = 'v', long = "verbose", action= clap::ArgAction::Count, help="verbose level")]
+    verbose: u8,
+    #[command(subcommand)]
+    commands: Commands,
+}
+
+fn main() -> anyhow::Result<()> {
+    let matches = Cli::parse();
+
+    match matches.verbose {
         1 => env::set_var("RUST_LOG", "info"),
         2 => env::set_var("RUST_LOG", "debug"),
         3 => env::set_var("RUST_LOG", "trace"),
@@ -43,11 +45,7 @@ fn main() {
 
     pretty_env_logger::init();
 
-    for one_command in COMMANDS {
-        if let Some(matches) = matches.subcommand_matches(one_command.command_name()) {
-            one_command.run(matches).expect("Operation Error");
-            return;
-        }
-    }
-    unreachable!()
+    matches.commands.run()?;
+
+    Ok(())
 }

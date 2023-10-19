@@ -1,42 +1,58 @@
-use super::Command;
-use clap::{App, Arg, ArgMatches};
+use clap::Args;
 use std::io;
-use std::str;
 
-pub struct ExtractCanonical;
-
-impl Command for ExtractCanonical {
-    fn command_name(&self) -> &'static str {
-        "extract-canonical"
-    }
-    fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-        app.about("Extract canonical transcript from snpeff log")
-            .arg(
-                Arg::with_name("input")
-                    .index(1)
-                    .takes_value(true)
-                    .help("snpEff standard error log file.")
-                    .long_help(
-                        r#"snpEff verbose standard error log file.
+#[derive(Debug, Args)]
+#[command(
+    about = "Extract canonical transcript from snpeff log",
+    version,
+    author
+)]
+pub struct ExtractCanonical {
+    #[arg(
+        help = "snpEff standard error log file.",
+        long_help = r#"snpEff verbose standard error log file.
 
 Please create snpEff standard error file with a command shown in below.
 $ java -jar snpEff.jar ann -v -canon -noStats -noLog hg19 < /dev/null 2> snpeff.log
-"#,
-                    ),
-            )
-            .arg(
-                Arg::with_name("output")
-                    .short("o")
-                    .long("output")
-                    .takes_value(true)
-                    .help("List of canonical transcripts"),
-            )
-    }
+"#
+    )]
+    input: Option<String>,
+    #[arg(short, long, help = "List of canonical transcripts")]
+    output: Option<String>,
+}
 
-    fn run(&self, matches: &ArgMatches<'static>) -> anyhow::Result<()> {
-        let reader = io::BufReader::new(autocompress::open_or_stdin(matches.value_of("input"))?);
+impl ExtractCanonical {
+    //     fn command_name(&self) -> &'static str {
+    //         "extract-canonical"
+    //     }
+    //     fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
+    //         app.about("Extract canonical transcript from snpeff log")
+    //             .arg(
+    //                 Arg::with_name("input")
+    //                     .index(1)
+    //                     .takes_value(true)
+    //                     .help("snpEff standard error log file.")
+    //                     .long_help(
+    //                         r#"snpEff verbose standard error log file.
+
+    // Please create snpEff standard error file with a command shown in below.
+    // $ java -jar snpEff.jar ann -v -canon -noStats -noLog hg19 < /dev/null 2> snpeff.log
+    // "#,
+    //                     ),
+    //             )
+    //             .arg(
+    //                 Arg::with_name("output")
+    //                     .short("o")
+    //                     .long("output")
+    //                     .takes_value(true)
+    //                     .help("List of canonical transcripts"),
+    //             )
+    //     }
+
+    pub fn run(&self) -> anyhow::Result<()> {
+        let reader = io::BufReader::new(autocompress::open_or_stdin(self.input.as_deref())?);
         let mut writer = autocompress::create_or_stdout(
-            matches.value_of("output"),
+            self.output.as_deref(),
             autocompress::CompressionLevel::Default,
         )?;
         let canonical_list = extract_canonical(reader)?;
