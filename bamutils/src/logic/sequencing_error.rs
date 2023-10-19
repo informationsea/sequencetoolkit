@@ -74,7 +74,12 @@ impl SequencingErrorCount {
         name_to_len: &HashMap<String, usize>,
     ) -> anyhow::Result<()> {
         self.cache_data.clear();
-        let seq_name = str::from_utf8(header_view.tid2name(record.tid().try_into().unwrap()))?;
+        let tid = if record.tid() >= 0 {
+            record.tid().try_into().unwrap()
+        } else {
+            return Err(anyhow::anyhow!("Unmapped read: {}", record.tid()));
+        };
+        let seq_name = str::from_utf8(header_view.tid2name(tid))?;
         let cigar_view = record.cigar();
         let reference_end: u64 = cigar_view.end_pos().try_into().unwrap();
         let seq_len: u64 = if let Some(l) = name_to_len.get(seq_name) {
@@ -192,10 +197,17 @@ impl SequencingErrorCount {
 
         while let Some(r) = bam_reader.read(&mut record) {
             r?;
+            if record.tid() < 0 {
+                continue;
+            }
             self.add_record(&header_view, &record, reference, &name_to_len)?;
             record_count += 1;
-            if record_count % 10000 == 0 {
-                eprintln!("Processing {record_count} records");
+            if record_count % 10_000 == 0 {
+                if record.seq_len() > 500 {
+                    eprintln!("Processing {record_count} records");
+                } else if record_count % 100_000 == 0 {
+                    eprintln!("Processing {record_count} records");
+                }
             }
         }
         Ok(())
