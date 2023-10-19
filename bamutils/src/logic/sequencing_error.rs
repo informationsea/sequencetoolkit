@@ -209,7 +209,7 @@ impl SequencingErrorCount {
             if record_count % 10_000 == 0 {
                 if record.seq_len() > 500 {
                     eprintln!("Processing {record_count} records");
-                } else if record_count % 100_000 == 0 {
+                } else if record_count % 1_000_000 == 0 {
                     eprintln!("Processing {record_count} records");
                 }
             }
