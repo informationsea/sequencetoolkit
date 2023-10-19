@@ -8,4 +8,3 @@ edition = "2018"
 
 [dependencies]
 clap = { version = "4", features = ["derive", "cargo"] }
-sequencetoolkit_common = {path = "../sequencetoolkit_common"}

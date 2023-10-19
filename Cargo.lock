@@ -669,7 +669,6 @@ name = "fastqutils"
 version = "0.1.0"
 dependencies = [
  "clap",
- "sequencetoolkit_common",
 ]
 
 [[package]]
@@ -1583,14 +1582,6 @@ dependencies = [
  "log",
  "pretty_env_logger",
  "vcfutils",
-]
-
-[[package]]
-name = "sequencetoolkit_common"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
 ]
 
 [[package]]

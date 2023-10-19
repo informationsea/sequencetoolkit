@@ -5,7 +5,6 @@ members = [
     "fastqutils",
     "geneannot",
     "sequencetoolkit",
-    "sequencetoolkit_common",
     "vcfutils",
 ]
 resolver = "2"
