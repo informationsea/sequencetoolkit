@@ -1,2 +1,11 @@
 [workspace]
-members = ["bamutils", "bedutils", "fastqutils", "geneannot", "sequencetoolkit", "sequencetoolkit_common", "vcfutils"]
+members = [
+    "bamutils",
+    "bedutils",
+    "fastqutils",
+    "geneannot",
+    "sequencetoolkit",
+    "sequencetoolkit_common",
+    "vcfutils",
+]
+resolver = "2"

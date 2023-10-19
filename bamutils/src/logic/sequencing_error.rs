@@ -184,6 +184,7 @@ impl SequencingErrorCount {
         &mut self,
         bam_reader: &mut impl bam::Read,
         reference: &mut IndexedReader<R>,
+        min_mapq: u8,
     ) -> anyhow::Result<()> {
         let header_view = bam_reader.header().clone();
         let mut record = Record::new();
@@ -198,6 +199,9 @@ impl SequencingErrorCount {
         while let Some(r) = bam_reader.read(&mut record) {
             r?;
             if record.tid() < 0 {
+                continue;
+            }
+            if record.mapq() < min_mapq {
                 continue;
             }
             self.add_record(&header_view, &record, reference, &name_to_len)?;
@@ -442,7 +446,7 @@ mod test {
         let mut count = SequencingErrorCount::new();
         let mut reference_fasta = IndexedReader::from_file(&"./testdata/ref/MT.fa")?;
         let mut bam = bam::Reader::from_path("./testdata/demo1.bam")?;
-        count.add_bam(&mut bam, &mut reference_fasta).unwrap();
+        count.add_bam(&mut bam, &mut reference_fasta, 0).unwrap();
         assert_eq!(
             count.mismatch,
             HashMap::from([
@@ -487,7 +491,7 @@ mod test {
         let mut reference_fasta = IndexedReader::from_file(&"./testdata/ref/MT.fa")?;
         let mut bam = bam::Reader::from_path("./testdata/demo1.cram")?;
         bam.set_reference("./testdata/ref/MT.fa")?;
-        count.add_bam(&mut bam, &mut reference_fasta).unwrap();
+        count.add_bam(&mut bam, &mut reference_fasta, 0).unwrap();
         assert_eq!(
             count.mismatch,
             HashMap::from([

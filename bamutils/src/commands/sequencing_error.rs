@@ -13,37 +13,18 @@ pub struct SequencingError {
     reference: String,
     #[arg(short, long, help = "Output CSV file")]
     output: Option<String>,
+    #[arg(short, long, help = "Minimum mapping quality", default_value = "20")]
+    min_mapq: u8,
 }
 
 impl SequencingError {
-    // fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-    //     app.about("Count sequencing error")
-    //         .arg(
-    //             Arg::with_name("bam")
-    //                 .index(1)
-    //                 .takes_value(true)
-    //                 .required(true)
-    //                 .help("Input BAM/CRAM file"),
-    //         )
-    //         .arg(
-    //             Arg::with_name("reference")
-    //                 .short("r")
-    //                 .long("reference")
-    //                 .alias("T")
-    //                 .required(true)
-    //                 .takes_value(true)
-    //                 .help("Reference FASTA"),
-    //         )
-    //         .arg(
-    //             Arg::with_name("output")
-    //                 .short("o")
-    //                 .long("output")
-    //                 .takes_value(true),
-    //         )
-    // }
-
     pub fn run(&self) -> anyhow::Result<()> {
-        run(&self.bam, &self.reference, self.output.as_deref())?;
+        run(
+            &self.bam,
+            &self.reference,
+            self.output.as_deref(),
+            self.min_mapq,
+        )?;
         Ok(())
     }
 }
@@ -52,6 +33,7 @@ fn run(
     bam_path: &str,
     reference_fasta_path: &str,
     output_path: Option<&str>,
+    min_mapq: u8,
 ) -> anyhow::Result<()> {
     let writer =
         autocompress::create_or_stdout(output_path, autocompress::CompressionLevel::Default)?;
@@ -62,7 +44,7 @@ fn run(
     let mut reference_fasta = fasta::IndexedReader::from_file(&reference_fasta_path)?;
     let mut counter = SequencingErrorCount::new();
     eprintln!("Counting...");
-    counter.add_bam(&mut bam, &mut reference_fasta)?;
+    counter.add_bam(&mut bam, &mut reference_fasta, min_mapq)?;
     eprintln!("Writing result...");
     csv_writer.write_record(&["Category", "Reference", "Sequenced", "Count"])?;
     csv_writer.write_record(&[
@@ -147,6 +129,7 @@ mod test {
             "./testdata/demo1.cram",
             "./testdata/ref/MT.fa",
             Some("../target/sequencing-error-count.csv"),
+            0,
         )?;
         Ok(())
     }
