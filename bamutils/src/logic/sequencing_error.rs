@@ -184,7 +184,7 @@ impl SequencingErrorCount {
                                 self.cache_data[i + ref_pos + 1].to_ascii_uppercase(),
                             ],
                         );
-                        if *r != *s {
+                        if (*r).to_ascii_uppercase() != (*s).to_ascii_uppercase() {
                             increment(&mut self.mismatch, Mismatch::new(*r, *s));
                             increment(
                                 &mut self.mismatch_triplet,
