@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4", features = ["derive", "cargo"] }
-rust-htslib = "0.39.5"
-bio = "0.41.0"
+rust-htslib = "0.44"
+bio = "1.4.0"
 csv = "^1.1.6"
 autocompress = "^0.2.2"
 rand = "0.8.5"

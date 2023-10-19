@@ -8,8 +8,8 @@ edition = "2018"
 
 [dependencies]
 clap = { version = "4", features = ["derive", "cargo"] }
-bio = "0.41.0"
-bio-types = "0.13.0"
+bio = "1.4.0"
+bio-types = "1"
 failure = "0.1"
 autocompress = "0.2"
 anyhow = "1"
