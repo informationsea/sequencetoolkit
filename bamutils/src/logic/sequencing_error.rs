@@ -16,8 +16,8 @@ pub struct Mismatch {
 impl Mismatch {
     pub fn new(reference: u8, sequenced: u8) -> Self {
         Mismatch {
-            reference,
-            sequenced,
+            reference: reference.to_ascii_uppercase(),
+            sequenced: sequenced.to_ascii_uppercase(),
         }
     }
 }
@@ -31,8 +31,16 @@ pub struct MismatchTriplet {
 impl MismatchTriplet {
     pub fn new(reference: [u8; 3], sequenced: [u8; 3]) -> Self {
         MismatchTriplet {
-            reference,
-            sequenced,
+            reference: [
+                reference[0].to_ascii_uppercase(),
+                reference[1].to_ascii_uppercase(),
+                reference[2].to_ascii_uppercase(),
+            ],
+            sequenced: [
+                sequenced[0].to_ascii_uppercase(),
+                sequenced[1].to_ascii_uppercase(),
+                sequenced[2].to_ascii_uppercase(),
+            ],
         }
     }
 }
@@ -47,23 +55,28 @@ fn increment<T: PartialEq + Eq + Hash>(hash: &mut HashMap<T, usize>, key: T) {
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct SequencingErrorCount {
-    pub total_match_base: HashMap<u8, usize>,
-    pub total_match_triplet: HashMap<[u8; 3], usize>,
+    pub total_reference_base: HashMap<u8, usize>,
+    pub total_reference_triplet: HashMap<[u8; 3], usize>,
     pub total_sequenced_len: usize,
     pub total_reference_len: usize,
     pub mismatch: HashMap<Mismatch, usize>,
     pub mismatch_triplet: HashMap<MismatchTriplet, usize>,
     pub insertion_length: HashMap<u32, usize>,
+    pub short_insertion: HashMap<Vec<u8>, usize>,
     pub deletion_length: HashMap<u32, usize>,
+    pub short_deletion: HashMap<Vec<u8>, usize>,
     pub softclip_length: HashMap<u32, usize>,
     pub hardclip_length: HashMap<u32, usize>,
 
     cache_data: Vec<u8>,
+    max_indel_length: usize,
 }
 
 impl SequencingErrorCount {
-    pub fn new() -> Self {
-        SequencingErrorCount::default()
+    pub fn new(max_indel_length: usize) -> Self {
+        let mut s = SequencingErrorCount::default();
+        s.max_indel_length = max_indel_length;
+        s
     }
 
     pub fn add_record<R: Read + Seek>(
@@ -114,11 +127,30 @@ impl SequencingErrorCount {
             match one_cigar {
                 Cigar::Del(l) => {
                     increment(&mut self.deletion_length, *l);
+                    if (*l) as usize <= self.max_indel_length {
+                        increment(
+                            &mut self.short_deletion,
+                            self.cache_data[ref_pos..(ref_pos + *l as usize)]
+                                .iter()
+                                .map(|x| x.to_ascii_uppercase())
+                                .collect(),
+                        );
+                    }
                     ref_pos += (*l) as usize;
                     //eprintln!("Del: {l}");
                 }
                 Cigar::Ins(l) => {
                     increment(&mut self.insertion_length, *l);
+                    if (*l) as usize <= self.max_indel_length {
+                        increment(
+                            &mut self.short_insertion,
+                            seq[seq_pos..(seq_pos + *l as usize)]
+                                .to_vec()
+                                .iter()
+                                .map(|x| x.to_ascii_uppercase())
+                                .collect(),
+                        );
+                    }
                     seq_pos += (*l) as usize;
                     //eprintln!("Ins: {l}");
                 }
@@ -143,13 +175,13 @@ impl SequencingErrorCount {
                     //eprintln!("ALT Match:{}", str::from_utf8(&match_seq)?);
 
                     for (i, (r, s)) in match_ref.iter().zip(match_seq.iter()).enumerate() {
-                        increment(&mut self.total_match_base, *r);
+                        increment(&mut self.total_reference_base, (*r).to_ascii_uppercase());
                         increment(
-                            &mut self.total_match_triplet,
+                            &mut self.total_reference_triplet,
                             [
-                                self.cache_data[i + ref_pos - 1],
-                                *r,
-                                self.cache_data[i + ref_pos + 1],
+                                self.cache_data[i + ref_pos - 1].to_ascii_uppercase(),
+                                (*r).to_ascii_uppercase(),
+                                self.cache_data[i + ref_pos + 1].to_ascii_uppercase(),
                             ],
                         );
                         if *r != *s {
@@ -225,7 +257,7 @@ mod test {
 
     #[test]
     fn test_add_record() -> anyhow::Result<()> {
-        let mut count = SequencingErrorCount::new();
+        let mut count = SequencingErrorCount::new(10);
         let mut reference_fasta = IndexedReader::from_file(&"./testdata/ref/MT.fa")?;
         let name_to_len: HashMap<_, _> = reference_fasta
             .index
@@ -267,6 +299,14 @@ mod test {
         assert_eq!(
             count.deletion_length,
             HashMap::from([(1, 1), (2, 1), (3, 1)])
+        );
+        assert_eq!(
+            count.short_deletion,
+            HashMap::from([
+                (b"A".to_vec(), 1),
+                (b"AGC".to_vec(), 1),
+                (b"CT".to_vec(), 1)
+            ])
         );
         assert!(count.softclip_length.is_empty());
 
@@ -318,6 +358,24 @@ mod test {
         assert_eq!(
             count.deletion_length,
             HashMap::from([(1, 1), (2, 1), (3, 1)])
+        );
+
+        assert_eq!(
+            count.short_deletion,
+            HashMap::from([
+                (b"A".to_vec(), 1),
+                (b"AGC".to_vec(), 1),
+                (b"CT".to_vec(), 1)
+            ])
+        );
+
+        assert_eq!(
+            count.short_insertion,
+            HashMap::from([
+                (b"G".to_vec(), 1),
+                (b"AA".to_vec(), 1),
+                (b"TTT".to_vec(), 1)
+            ])
         );
         assert!(count.softclip_length.is_empty());
 
@@ -435,15 +493,15 @@ mod test {
         assert!(bam.read(&mut record).is_none());
 
         assert_eq!(count.total_sequenced_len, 900);
-        assert_eq!(*count.total_match_triplet.get(b"NGA").unwrap(), 1);
-        assert_eq!(*count.total_match_triplet.get(b"TGN").unwrap(), 1);
+        assert_eq!(*count.total_reference_triplet.get(b"NGA").unwrap(), 1);
+        assert_eq!(*count.total_reference_triplet.get(b"TGN").unwrap(), 1);
 
         Ok(())
     }
 
     #[test]
     fn test_add_bam() -> anyhow::Result<()> {
-        let mut count = SequencingErrorCount::new();
+        let mut count = SequencingErrorCount::new(10);
         let mut reference_fasta = IndexedReader::from_file(&"./testdata/ref/MT.fa")?;
         let mut bam = bam::Reader::from_path("./testdata/demo1.bam")?;
         count.add_bam(&mut bam, &mut reference_fasta, 0).unwrap();
@@ -487,7 +545,7 @@ mod test {
 
     #[test]
     fn test_add_cram() -> anyhow::Result<()> {
-        let mut count = SequencingErrorCount::new();
+        let mut count = SequencingErrorCount::new(10);
         let mut reference_fasta = IndexedReader::from_file(&"./testdata/ref/MT.fa")?;
         let mut bam = bam::Reader::from_path("./testdata/demo1.cram")?;
         bam.set_reference("./testdata/ref/MT.fa")?;

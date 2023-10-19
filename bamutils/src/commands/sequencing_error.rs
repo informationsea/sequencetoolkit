@@ -15,6 +15,13 @@ pub struct SequencingError {
     output: Option<String>,
     #[arg(short, long, help = "Minimum mapping quality", default_value = "20")]
     min_mapq: u8,
+    #[arg(
+        short,
+        long,
+        help = "maximum length of insertion/deletion to count",
+        default_value = "5"
+    )]
+    max_indel_length: usize,
 }
 
 impl SequencingError {
@@ -24,6 +31,7 @@ impl SequencingError {
             &self.reference,
             self.output.as_deref(),
             self.min_mapq,
+            self.max_indel_length,
         )?;
         Ok(())
     }
@@ -34,6 +42,7 @@ fn run(
     reference_fasta_path: &str,
     output_path: Option<&str>,
     min_mapq: u8,
+    max_indel_length: usize,
 ) -> anyhow::Result<()> {
     let writer =
         autocompress::create_or_stdout(output_path, autocompress::CompressionLevel::Default)?;
@@ -42,7 +51,7 @@ fn run(
     let mut bam = bam::Reader::from_path(bam_path)?;
     bam.set_reference(reference_fasta_path)?;
     let mut reference_fasta = fasta::IndexedReader::from_file(&reference_fasta_path)?;
-    let mut counter = SequencingErrorCount::new();
+    let mut counter = SequencingErrorCount::new(max_indel_length);
     eprintln!("Counting...");
     counter.add_bam(&mut bam, &mut reference_fasta, min_mapq)?;
     eprintln!("Writing result...");
@@ -59,17 +68,17 @@ fn run(
         "".to_string(),
         format!("{}", counter.total_reference_len),
     ])?;
-    for (k, v) in counter.total_match_base.iter() {
+    for (k, v) in counter.total_reference_base.iter() {
         csv_writer.write_record(&[
-            "Total Match Reference Base".to_string(),
+            "Total Reference Base".to_string(),
             str::from_utf8(&[*k])?.to_string(),
             "".to_string(),
             format!("{}", v),
         ])?;
     }
-    for (k, v) in counter.total_match_triplet.iter() {
+    for (k, v) in counter.total_reference_triplet.iter() {
         csv_writer.write_record(&[
-            "Total Match Reference Triplet".to_string(),
+            "Total Reference Triplet".to_string(),
             str::from_utf8(k)?.to_string(),
             "".to_string(),
             format!("{}", v),
@@ -99,11 +108,27 @@ fn run(
             format!("{}", v),
         ])?;
     }
+    for (k, v) in counter.short_insertion.iter() {
+        csv_writer.write_record(&[
+            "Insertion".to_string(),
+            "".to_string(),
+            str::from_utf8(&k)?.to_string(),
+            format!("{}", v),
+        ])?;
+    }
     for (k, v) in counter.deletion_length.iter() {
         csv_writer.write_record(&[
             "Deletion Length".to_string(),
             "".to_string(),
             format!("{}", k),
+            format!("{}", v),
+        ])?;
+    }
+    for (k, v) in counter.short_deletion.iter() {
+        csv_writer.write_record(&[
+            "Deletion".to_string(),
+            "".to_string(),
+            str::from_utf8(&k)?.to_string(),
             format!("{}", v),
         ])?;
     }
@@ -130,6 +155,7 @@ mod test {
             "./testdata/ref/MT.fa",
             Some("../target/sequencing-error-count.csv"),
             0,
+            10,
         )?;
         Ok(())
     }
