@@ -135,7 +135,7 @@ impl SequencingErrorCount {
                 }
             }
         }
-        eprintln!("known variants: {:?}", self.known_variant_positions);
+        //eprintln!("known variants: {:?}", self.known_variant_positions);
         Ok(())
     }
 
