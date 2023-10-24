@@ -3,10 +3,18 @@ use std::env;
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    #[command(name = "bamutils")]
     BamUtils(bamutils::BamUtils),
+    #[command(name = "bedutils")]
     BedUtils(bedutils::BEDUtils),
+    #[command(name = "geneannot")]
     GeneAnnot(geneannot::GeneAnnot),
+    #[command(name = "vcfutils")]
     VcfUtils(vcfutils::VCFUtils),
+    #[command(name = "fastqutils")]
+    FastqUtils(fastqutils::FastqUtils),
+    #[command(name = "bam2fastq")]
+    Bam2fastq(bam2fastq::Bam2fastq),
 }
 
 impl Commands {
@@ -16,6 +24,8 @@ impl Commands {
             Commands::BedUtils(x) => x.run(),
             Commands::GeneAnnot(x) => x.run(),
             Commands::VcfUtils(x) => x.run(),
+            Commands::Bam2fastq(x) => x.run(),
+            Commands::FastqUtils(x) => x.run(),
         }
     }
 }
