@@ -1,3 +1,4 @@
+use anyhow::Context;
 use bio::io::fasta::IndexedReader;
 use rust_htslib::bam;
 use rust_htslib::bam::record::{Cigar, Record};
@@ -119,8 +120,17 @@ impl<R: Read + Seek> SequencingErrorProcessor<R> {
     pub fn load_known_variants(&mut self, chromosome: &[u8]) -> anyhow::Result<()> {
         self.known_variant_positions.clear();
         if let Some(reader) = self.known_variants.as_mut() {
-            let rid = reader.header().name2rid(chromosome)?;
-            reader.fetch(rid, 0, None)?;
+            let rid = match reader.header().name2rid(chromosome) {
+                Ok(rid) => rid,
+                Err(rust_htslib::errors::Error::BcfUnknownContig { contig: _contig }) => {
+                    return Ok(())
+                }
+                Err(e) => return Err(e).context("Failed to load rid of known variants"),
+            };
+
+            reader
+                .fetch(rid, 0, None)
+                .context("Failed to fetch known variants")?;
             let mut record = reader.empty_record();
             while let Some(r) = reader.read(&mut record) {
                 r?;
@@ -189,10 +199,21 @@ impl<R: Read + Seek> SequencingErrorProcessor<R> {
             return Err(anyhow::anyhow!("Unmapped read: {}", record.tid()));
         };
         let seq_name = str::from_utf8(header_view.tid2name(tid))?;
+        if !self
+            .target_regions
+            .regions
+            .contains_key(seq_name.as_bytes())
+        {
+            return Ok(());
+        }
         if tid != self.last_tid {
-            self.reference_seq.fetch_all(seq_name)?;
+            self.reference_seq
+                .fetch_all(seq_name)
+                .with_context(|| format!("Failed to load {seq_name} from fastq"))?;
             self.cached_reference_seq.clear();
-            self.reference_seq.read(&mut self.cached_reference_seq)?;
+            self.reference_seq
+                .read(&mut self.cached_reference_seq)
+                .with_context(|| format!("Failed to read {seq_name} from fastq"))?;
             self.last_tid = tid;
             self.load_known_variants(seq_name.as_bytes())?;
         }
@@ -369,11 +390,15 @@ impl<R: Read + Seek> SequencingErrorProcessor<R> {
         let mut record_count = 0;
 
         while let Some(r) = bam_reader.read(&mut record) {
-            r?;
+            r.context("BAM parse error")?;
             if record.tid() < 0 {
                 continue;
             }
             if record.mapq() < min_mapq {
+                continue;
+            }
+            let seq_name = header_view.tid2name(record.tid().try_into().unwrap());
+            if !self.target_regions.regions.contains_key(seq_name) {
                 continue;
             }
             self.add_record(&header_view, &record)?;
