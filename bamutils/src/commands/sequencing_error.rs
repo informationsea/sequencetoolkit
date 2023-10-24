@@ -1,8 +1,8 @@
-use crate::logic::sequencing_error::SequencingErrorCount;
+use crate::logic::sequencing_error::{Regions, SequencingErrorProcessor};
 use bio::io::fasta;
 use clap::Args;
 use rust_htslib::bam;
-use std::str;
+use std::{fs::File, str};
 
 #[derive(Debug, Args)]
 #[command(about = "Count sequencing error", version, author)]
@@ -22,8 +22,10 @@ pub struct SequencingError {
         default_value = "3"
     )]
     max_indel_length: usize,
-    #[arg(short, long, help = "Known SNP/INDELs VCF")]
+    #[arg(short, long, help = "Known SNP/INDELs VCF to exclude")]
     known_variants: Option<String>,
+    #[arg(short, long, help = "Target regions BED")]
+    region_bed: Option<String>,
 }
 
 impl SequencingError {
@@ -40,9 +42,22 @@ impl SequencingError {
         let known_variants = self.known_variants.as_deref().map(|x| {
             rust_htslib::bcf::IndexedReader::from_path(x).expect("Failed to open known variants")
         });
-        let mut counter = SequencingErrorCount::new(self.max_indel_length, known_variants);
+
+        let regions = if let Some(bed) = self.region_bed.as_deref() {
+            Regions::load_from_bed(File::open(bed)?)?
+        } else {
+            Regions::create_from_fasta(&mut reference_fasta)
+        };
+
+        let mut processor = SequencingErrorProcessor::new(
+            self.max_indel_length,
+            known_variants,
+            reference_fasta,
+            regions,
+        );
         eprintln!("Counting...");
-        counter.add_bam(&mut bam, &mut reference_fasta, self.min_mapq)?;
+        processor.add_bam(&mut bam, self.min_mapq)?;
+        let counter = processor.count();
         eprintln!("Writing result...");
         csv_writer.write_record(&["Category", "Reference", "Sequenced", "Count"])?;
         csv_writer.write_record(&[
@@ -147,6 +162,7 @@ mod test {
             min_mapq: 0,
             max_indel_length: 10,
             known_variants: None,
+            region_bed: None,
         };
         cli.run()?;
         Ok(())
