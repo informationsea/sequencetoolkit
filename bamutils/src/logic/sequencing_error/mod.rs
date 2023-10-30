@@ -9,7 +9,31 @@ use std::hash::Hash;
 use std::io::prelude::*;
 use std::str;
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+fn reverse_complement(acid: u8) -> u8 {
+    match acid {
+        b'A' => b'T',
+        b'C' => b'G',
+        b'G' => b'C',
+        b'T' => b'A',
+        _ => b'N',
+    }
+}
+
+fn reverse_complement_triplet(acid: [u8; 3]) -> [u8; 3] {
+    [
+        reverse_complement(acid[2]),
+        reverse_complement(acid[1]),
+        reverse_complement(acid[0]),
+    ]
+}
+
+fn reverse_complement_vec(acid: &[u8]) -> Vec<u8> {
+    let mut seq: Vec<_> = acid.iter().map(|x| reverse_complement(*x)).collect();
+    seq.reverse();
+    seq
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Mismatch {
     pub reference: u8,
     pub sequenced: u8,
@@ -20,6 +44,13 @@ impl Mismatch {
         Mismatch {
             reference: reference.to_ascii_uppercase(),
             sequenced: sequenced.to_ascii_uppercase(),
+        }
+    }
+
+    pub fn reverse_complement(&self) -> Mismatch {
+        Mismatch {
+            reference: reverse_complement(self.reference),
+            sequenced: reverse_complement(self.sequenced),
         }
     }
 }
@@ -42,6 +73,21 @@ impl MismatchTriplet {
                 sequenced[0].to_ascii_uppercase(),
                 sequenced[1].to_ascii_uppercase(),
                 sequenced[2].to_ascii_uppercase(),
+            ],
+        }
+    }
+
+    pub fn reverse_complement(&self) -> MismatchTriplet {
+        MismatchTriplet {
+            reference: [
+                reverse_complement(self.reference[2]),
+                reverse_complement(self.reference[1]),
+                reverse_complement(self.reference[0]),
+            ],
+            sequenced: [
+                reverse_complement(self.sequenced[2]),
+                reverse_complement(self.sequenced[1]),
+                reverse_complement(self.sequenced[0]),
             ],
         }
     }
@@ -226,6 +272,8 @@ impl<R: Read + Seek> SequencingErrorProcessor<R> {
             return Err(anyhow::anyhow!("Unknown sequence name: {}", seq_name));
         };
 
+        let reversed = record.is_reverse();
+
         let reference_cache_start: usize = (0.max(record.pos() - 1)).try_into().unwrap();
         let reference_cache_end: usize = seq_len.min(reference_end + 1).try_into().unwrap();
         self.cache_data.extend_from_slice(
@@ -266,13 +314,15 @@ impl<R: Read + Seek> SequencingErrorProcessor<R> {
                     {
                         increment(&mut self.count.deletion_length, *l);
                         if (*l) as usize <= self.max_indel_length {
-                            increment(
-                                &mut self.count.short_deletion,
-                                self.cache_data[ref_pos..(ref_pos + *l as usize)]
-                                    .iter()
-                                    .map(|x| x.to_ascii_uppercase())
-                                    .collect(),
-                            );
+                            let mut del_seq: Vec<_> = self.cache_data
+                                [ref_pos..(ref_pos + *l as usize)]
+                                .iter()
+                                .map(|x| x.to_ascii_uppercase())
+                                .collect();
+                            if reversed {
+                                del_seq = reverse_complement_vec(&del_seq);
+                            }
+                            increment(&mut self.count.short_deletion, del_seq);
                         }
                     }
                     ref_pos += TryInto::<usize>::try_into(*l).unwrap();
@@ -288,14 +338,15 @@ impl<R: Read + Seek> SequencingErrorProcessor<R> {
                     {
                         increment(&mut self.count.insertion_length, *l);
                         if (*l) as usize <= self.max_indel_length {
-                            increment(
-                                &mut self.count.short_insertion,
-                                seq[seq_pos..(seq_pos + *l as usize)]
-                                    .to_vec()
-                                    .iter()
-                                    .map(|x| x.to_ascii_uppercase())
-                                    .collect(),
-                            );
+                            let mut ins_seq: Vec<_> = seq[seq_pos..(seq_pos + *l as usize)]
+                                .to_vec()
+                                .iter()
+                                .map(|x| x.to_ascii_uppercase())
+                                .collect();
+                            if reversed {
+                                ins_seq = reverse_complement_vec(&ins_seq);
+                            }
+                            increment(&mut self.count.short_insertion, ins_seq);
                         }
                     }
                     seq_pos += TryInto::<usize>::try_into(*l).unwrap();
@@ -342,36 +393,42 @@ impl<R: Read + Seek> SequencingErrorProcessor<R> {
                                 .target_regions
                                 .contains(seq_name.as_bytes(), ref_pos_real.try_into().unwrap())
                         {
-                            increment(
-                                &mut self.count.total_reference_base,
+                            let mut ref_acid = (*r).to_ascii_uppercase();
+                            if reversed {
+                                ref_acid = reverse_complement(ref_acid)
+                            }
+                            increment(&mut self.count.total_reference_base, ref_acid);
+                            let mut ref_triplet = [
+                                self.cache_data[i + ref_pos - 1].to_ascii_uppercase(),
                                 (*r).to_ascii_uppercase(),
-                            );
-                            increment(
-                                &mut self.count.total_reference_triplet,
-                                [
-                                    self.cache_data[i + ref_pos - 1].to_ascii_uppercase(),
-                                    (*r).to_ascii_uppercase(),
-                                    self.cache_data[i + ref_pos + 1].to_ascii_uppercase(),
-                                ],
-                            );
+                                self.cache_data[i + ref_pos + 1].to_ascii_uppercase(),
+                            ];
+                            if reversed {
+                                ref_triplet = reverse_complement_triplet(ref_triplet);
+                            }
+                            increment(&mut self.count.total_reference_triplet, ref_triplet);
                             if (*r).to_ascii_uppercase() != (*s).to_ascii_uppercase() {
                                 // eprintln!("SEQUENCING ERROR: snv/mnv ref pos real: {ref_pos_real}");
-                                increment(&mut self.count.mismatch, Mismatch::new(*r, *s));
-                                increment(
-                                    &mut self.count.mismatch_triplet,
-                                    MismatchTriplet::new(
-                                        [
-                                            self.cache_data[i + ref_pos - 1],
-                                            *r,
-                                            self.cache_data[i + ref_pos + 1],
-                                        ],
-                                        [
-                                            self.cache_data[i + ref_pos - 1],
-                                            *s,
-                                            self.cache_data[i + ref_pos + 1],
-                                        ],
-                                    ),
+                                let mut mismatch = Mismatch::new(*r, *s);
+                                let mut mismatch_triplet = MismatchTriplet::new(
+                                    [
+                                        self.cache_data[i + ref_pos - 1],
+                                        *r,
+                                        self.cache_data[i + ref_pos + 1],
+                                    ],
+                                    [
+                                        self.cache_data[i + ref_pos - 1],
+                                        *s,
+                                        self.cache_data[i + ref_pos + 1],
+                                    ],
                                 );
+                                if reversed {
+                                    mismatch = mismatch.reverse_complement();
+                                    mismatch_triplet = mismatch_triplet.reverse_complement();
+                                }
+
+                                increment(&mut self.count.mismatch, mismatch);
+                                increment(&mut self.count.mismatch_triplet, mismatch_triplet);
                             }
                         }
                     }

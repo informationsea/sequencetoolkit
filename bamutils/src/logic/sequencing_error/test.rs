@@ -239,13 +239,55 @@ fn test_add_record() -> anyhow::Result<()> {
     assert_eq!(count.softclip_length, HashMap::from([(9, 1), (6, 1)]));
 
     bam.read(&mut record).unwrap()?;
+    assert_eq!(record.qname(), b"READ10");
+    processor.add_record(bam.header(), &record)?;
+    let count = &processor.count;
+    assert_eq!(
+        count.mismatch,
+        HashMap::from([
+            (Mismatch::new(b'C', b'G'), 2),
+            (Mismatch::new(b'T', b'A'), 2),
+            (Mismatch::new(b'G', b'T'), 1),
+            (Mismatch::new(b'T', b'G'), 3),
+            (Mismatch::new(b'A', b'G'), 2),
+            (Mismatch::new(b'A', b'C'), 3),
+        ])
+    );
+    assert_eq!(
+        count.mismatch_triplet,
+        HashMap::from([
+            (MismatchTriplet::new(*b"CCC", *b"CGC"), 1),
+            (MismatchTriplet::new(*b"TTT", *b"TAT"), 1),
+            (MismatchTriplet::new(*b"GGC", *b"GTC"), 1),
+            (MismatchTriplet::new(*b"CTC", *b"CGC"), 1),
+            (MismatchTriplet::new(*b"TCC", *b"TGC"), 1),
+            (MismatchTriplet::new(*b"TAC", *b"TGC"), 1),
+            (MismatchTriplet::new(*b"TTT", *b"TGT"), 1),
+            (MismatchTriplet::new(*b"AAA", *b"AGA"), 1),
+            (MismatchTriplet::new(*b"GAT", *b"GCT"), 1),
+            (MismatchTriplet::new(*b"TTA", *b"TGA"), 1),
+            (MismatchTriplet::new(*b"TTG", *b"TAG"), 1),
+            (MismatchTriplet::new(*b"TAG", *b"TCG"), 1),
+            (MismatchTriplet::new(*b"TAC", *b"TCC"), 1),
+        ])
+    );
+    assert_eq!(
+        count.insertion_length,
+        HashMap::from([(1, 3), (2, 2), (3, 2), (4, 1)])
+    );
+    assert_eq!(
+        count.deletion_length,
+        HashMap::from([(1, 4), (2, 2), (3, 2), (4, 1)])
+    );
+
+    bam.read(&mut record).unwrap()?;
     assert_eq!(record.qname(), b"READ9");
     processor.add_record(bam.header(), &record)?;
     let count = &processor.count;
 
     assert!(bam.read(&mut record).is_none());
 
-    assert_eq!(count.total_sequenced_len, 900);
+    assert_eq!(count.total_sequenced_len, 1000);
     assert_eq!(*count.total_reference_triplet.get(b"NGA").unwrap(), 1);
     assert_eq!(*count.total_reference_triplet.get(b"TGN").unwrap(), 1);
 
@@ -265,11 +307,11 @@ fn test_add_bam() -> anyhow::Result<()> {
         count.mismatch,
         HashMap::from([
             (Mismatch::new(b'C', b'G'), 2),
-            (Mismatch::new(b'T', b'A'), 1),
+            (Mismatch::new(b'T', b'A'), 2),
             (Mismatch::new(b'G', b'T'), 1),
             (Mismatch::new(b'T', b'G'), 3),
             (Mismatch::new(b'A', b'G'), 2),
-            (Mismatch::new(b'A', b'C'), 1),
+            (Mismatch::new(b'A', b'C'), 3),
         ])
     );
     assert_eq!(
@@ -285,15 +327,18 @@ fn test_add_bam() -> anyhow::Result<()> {
             (MismatchTriplet::new(*b"AAA", *b"AGA"), 1),
             (MismatchTriplet::new(*b"GAT", *b"GCT"), 1),
             (MismatchTriplet::new(*b"TTA", *b"TGA"), 1),
+            (MismatchTriplet::new(*b"TTG", *b"TAG"), 1),
+            (MismatchTriplet::new(*b"TAG", *b"TCG"), 1),
+            (MismatchTriplet::new(*b"TAC", *b"TCC"), 1),
         ])
     );
     assert_eq!(
         count.insertion_length,
-        HashMap::from([(1, 2), (2, 1), (3, 2), (4, 1)])
+        HashMap::from([(1, 3), (2, 2), (3, 2), (4, 1)])
     );
     assert_eq!(
         count.deletion_length,
-        HashMap::from([(1, 4), (2, 2), (3, 1), (4, 1)])
+        HashMap::from([(1, 4), (2, 2), (3, 2), (4, 1)])
     );
     assert_eq!(count.softclip_length, HashMap::from([(9, 1), (6, 1)]));
     Ok(())
@@ -313,11 +358,11 @@ fn test_add_cram() -> anyhow::Result<()> {
         count.mismatch,
         HashMap::from([
             (Mismatch::new(b'C', b'G'), 2),
-            (Mismatch::new(b'T', b'A'), 1),
+            (Mismatch::new(b'T', b'A'), 2),
             (Mismatch::new(b'G', b'T'), 1),
             (Mismatch::new(b'T', b'G'), 3),
             (Mismatch::new(b'A', b'G'), 2),
-            (Mismatch::new(b'A', b'C'), 1),
+            (Mismatch::new(b'A', b'C'), 3),
         ])
     );
     assert_eq!(
@@ -333,15 +378,18 @@ fn test_add_cram() -> anyhow::Result<()> {
             (MismatchTriplet::new(*b"AAA", *b"AGA"), 1),
             (MismatchTriplet::new(*b"GAT", *b"GCT"), 1),
             (MismatchTriplet::new(*b"TTA", *b"TGA"), 1),
+            (MismatchTriplet::new(*b"TTG", *b"TAG"), 1),
+            (MismatchTriplet::new(*b"TAG", *b"TCG"), 1),
+            (MismatchTriplet::new(*b"TAC", *b"TCC"), 1),
         ])
     );
     assert_eq!(
         count.insertion_length,
-        HashMap::from([(1, 2), (2, 1), (3, 2), (4, 1)])
+        HashMap::from([(1, 3), (2, 2), (3, 2), (4, 1)])
     );
     assert_eq!(
         count.deletion_length,
-        HashMap::from([(1, 4), (2, 2), (3, 1), (4, 1)])
+        HashMap::from([(1, 4), (2, 2), (3, 2), (4, 1)])
     );
     assert_eq!(count.softclip_length, HashMap::from([(9, 1), (6, 1)]));
     Ok(())
@@ -580,13 +628,54 @@ fn test_add_record_with_known_variants() -> anyhow::Result<()> {
     assert_eq!(count.softclip_length, HashMap::from([(9, 1), (6, 1)]));
 
     bam.read(&mut record).unwrap()?;
+    assert_eq!(record.qname(), b"READ10");
+    processor.add_record(bam.header(), &record)?;
+    let count = &processor.count;
+    assert_eq!(
+        count.mismatch,
+        HashMap::from([
+            (Mismatch::new(b'C', b'G'), 2),
+            (Mismatch::new(b'G', b'T'), 1),
+            (Mismatch::new(b'T', b'G'), 3),
+            (Mismatch::new(b'A', b'G'), 2),
+            (Mismatch::new(b'A', b'C'), 3),
+            (Mismatch::new(b'T', b'A'), 1),
+        ])
+    );
+    assert_eq!(
+        count.mismatch_triplet,
+        HashMap::from([
+            (MismatchTriplet::new(*b"CCC", *b"CGC"), 1),
+            (MismatchTriplet::new(*b"GGC", *b"GTC"), 1),
+            (MismatchTriplet::new(*b"CTC", *b"CGC"), 1),
+            (MismatchTriplet::new(*b"TCC", *b"TGC"), 1),
+            (MismatchTriplet::new(*b"TAC", *b"TGC"), 1),
+            (MismatchTriplet::new(*b"TTT", *b"TGT"), 1),
+            (MismatchTriplet::new(*b"AAA", *b"AGA"), 1),
+            (MismatchTriplet::new(*b"GAT", *b"GCT"), 1),
+            (MismatchTriplet::new(*b"TTA", *b"TGA"), 1),
+            (MismatchTriplet::new(*b"TTG", *b"TAG"), 1),
+            (MismatchTriplet::new(*b"TAG", *b"TCG"), 1),
+            (MismatchTriplet::new(*b"TAC", *b"TCC"), 1),
+        ])
+    );
+    assert_eq!(
+        count.insertion_length,
+        HashMap::from([(1, 3), (2, 1), (3, 2), (4, 1)])
+    );
+    assert_eq!(
+        count.deletion_length,
+        HashMap::from([(1, 3), (2, 2), (3, 2), (4, 1)])
+    );
+
+    bam.read(&mut record).unwrap()?;
     assert_eq!(record.qname(), b"READ9");
     processor.add_record(bam.header(), &record)?;
     let count = &processor.count;
 
     assert!(bam.read(&mut record).is_none());
 
-    assert_eq!(count.total_sequenced_len, 900);
+    assert_eq!(count.total_sequenced_len, 1000);
     assert_eq!(*count.total_reference_triplet.get(b"NGA").unwrap(), 1);
     assert_eq!(*count.total_reference_triplet.get(b"TGN").unwrap(), 1);
 
