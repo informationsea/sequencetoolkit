@@ -1,5 +1,6 @@
 use clap::Args;
 use std::io;
+use std::io::Write;
 
 #[derive(Debug, Args)]
 #[command(
@@ -50,8 +51,10 @@ impl ExtractCanonical {
     //     }
 
     pub fn run(&self) -> anyhow::Result<()> {
-        let reader = io::BufReader::new(autocompress::open_or_stdin(self.input.as_deref())?);
-        let mut writer = autocompress::create_or_stdout(
+        let reader = io::BufReader::new(autocompress::autodetect_open_or_stdin(
+            self.input.as_deref(),
+        )?);
+        let mut writer = autocompress::autodetect_create_or_stdout_prefer_bgzip(
             self.output.as_deref(),
             autocompress::CompressionLevel::Default,
         )?;

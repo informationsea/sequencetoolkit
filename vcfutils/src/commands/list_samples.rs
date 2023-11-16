@@ -1,5 +1,7 @@
 use crate::utils;
+use autocompress::io::RayonWriter;
 use clap::Args;
+use std::io::prelude::*;
 use std::str;
 
 #[derive(Debug, Args)]
@@ -12,32 +14,12 @@ pub struct ListSamples {
 }
 
 impl ListSamples {
-    // fn command_name(&self) -> &'static str {
-    //     "list-samples"
-    // }
-    // fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-    //     app.about("List up sample names")
-    //         .arg(
-    //             Arg::with_name("input")
-    //                 .index(1)
-    //                 .takes_value(true)
-    //                 .help("Input VCF file"),
-    //         )
-    //         .arg(
-    //             Arg::with_name("output")
-    //                 .short("o")
-    //                 .long("output")
-    //                 .takes_value(true)
-    //                 .help("Output Text"),
-    //         )
-    // }
-
     pub fn run(&self) -> anyhow::Result<()> {
         let vcf_reader = utils::open_vcf_from_path(self.input.as_deref())?;
-        let mut output = autocompress::create_or_stdout(
+        let mut output = RayonWriter::new(autocompress::autodetect_create_or_stdout_prefer_bgzip(
             self.output.as_ref(),
             autocompress::CompressionLevel::Default,
-        )?;
+        )?);
         for one in vcf_reader.header().samples() {
             writeln!(output, "{}", str::from_utf8(one)?)?;
         }

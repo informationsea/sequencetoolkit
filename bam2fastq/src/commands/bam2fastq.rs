@@ -1,8 +1,10 @@
+use anyhow::Context;
+use autocompress::io::RayonWriter;
 use flate2::write::GzEncoder;
 use rust_htslib::bam::{self, Read};
 use std::collections::HashMap;
 use std::fs;
-use std::io::{prelude::*, BufWriter};
+use std::io::prelude::*;
 use std::str;
 
 #[derive(Debug, Clone, clap::Args)]
@@ -58,7 +60,10 @@ impl Fastq {
             })
             .collect();
 
-        let iothread = autocompress::iothread::IoThread::new(self.write_threads);
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(self.write_threads)
+            .build_global()
+            .context("Failed to set # of threads")?;
         let compression_level = flate2::Compression::new(self.compression_level);
 
         let mut outputs = HashMap::new();
@@ -66,22 +71,22 @@ impl Fastq {
             outputs.insert(
                 one_group.to_vec(),
                 (
-                    BufWriter::new(iothread.add_writer(GzEncoder::new(
+                    RayonWriter::new(GzEncoder::new(
                         fs::File::create(format!(
                             "{}_{}_1.fastq.gz",
                             self.output_prefix,
                             str::from_utf8(one_group).unwrap()
                         ))?,
                         compression_level,
-                    ))),
-                    BufWriter::new(iothread.add_writer(GzEncoder::new(
+                    )),
+                    RayonWriter::new(GzEncoder::new(
                         fs::File::create(format!(
                             "{}_{}_2.fastq.gz",
                             self.output_prefix,
                             str::from_utf8(one_group).unwrap()
                         ))?,
                         compression_level,
-                    ))),
+                    )),
                 ),
             );
         }

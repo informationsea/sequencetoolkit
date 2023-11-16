@@ -4,10 +4,11 @@ use crate::logic::vcf2table::{
 };
 use crate::utils;
 use crate::utils::tablewriter::{CSVWriter, TSVWriter, TableWriter, XlsxSheetWriter};
+use autocompress::io::RayonReader;
 use clap::{Args, ValueEnum};
 use std::boxed::Box;
 use std::collections::HashSet;
-use std::io::{BufRead, BufReader};
+use std::io::BufRead;
 use vcf::VCFHeader;
 
 pub trait TableConfig {
@@ -99,87 +100,6 @@ impl TableConfig for VCF2CSV {
 }
 
 impl VCF2CSV {
-    // fn command_name(&self) -> &'static str {
-    //     "vcf2csv"
-    // }
-    // fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-    //     app.about("Convert VCF to csv")
-    //         .arg(
-    //             Arg::with_name("input")
-    //                 .index(1)
-    //                 .takes_value(true)
-    //                 .multiple(true)
-    //                 .help("Input VCF file"),
-    //         )
-    //         .arg(
-    //             Arg::with_name("output")
-    //                 .short("o")
-    //                 .long("output")
-    //                 .takes_value(true)
-    //                 .help("Output file"),
-    //         )
-    //         .arg(
-    //             Arg::with_name("canonical-list")
-    //                 .short("c")
-    //                 .long("canonical-list")
-    //                 .takes_value(true)
-    //                 .help("Canonical transcript list (created with extract-canonical command)"),
-    //         )
-    //         .arg(
-    //             Arg::with_name("datatype")
-    //                 .short("t")
-    //                 .long("data-type")
-    //                 .alias("datatype")
-    //                 .takes_value(true)
-    //                 .help("Data type to output")
-    //                 .possible_values(&["auto", "xlsx", "csv", "tsv"])
-    //                 .default_value("auto"),
-    //         )
-    //         .arg(
-    //             Arg::with_name("split-multi-allelic")
-    //                 .short("m")
-    //                 .long("split-multi-allelic")
-    //                 .help("Split multi allelic sites into multiple lines"),
-    //         )
-    //         .arg(
-    //             Arg::with_name("decode-genotype")
-    //                 .short("d")
-    //                 .long("decode-genotype")
-    //                 .help("Decode GT format tag number into alleles"),
-    //         )
-    //         .arg(
-    //             Arg::with_name("info")
-    //                 .short("i")
-    //                 .long("info")
-    //                 .help("INFO tags to include")
-    //                 .takes_value(true)
-    //                 .multiple(true),
-    //         )
-    //         .arg(
-    //             Arg::with_name("format")
-    //                 .short("f")
-    //                 .long("format")
-    //                 .help("FORMAT tags to include")
-    //                 .takes_value(true)
-    //                 .multiple(true),
-    //         )
-    //         .arg(
-    //             Arg::with_name("group-names")
-    //                 .short("g")
-    //                 .long("group-names")
-    //                 .takes_value(true)
-    //                 .multiple(true)
-    //                 .help("add Group Name column and fill with a value for each input vcf"),
-    //         )
-    //         .arg(
-    //             Arg::with_name("replace-sample-name")
-    //                 .short("r")
-    //                 .help("Replace sample name for each input vcf")
-    //                 .takes_value(true)
-    //                 .multiple(true),
-    //         )
-    // }
-
     pub fn run(&self) -> anyhow::Result<()> {
         let output_type = match self.datatype {
             DataType::CSV => "csv",
@@ -200,26 +120,24 @@ impl VCF2CSV {
             }
         };
 
-        // let vcf_files: Vec<_> = self
-        //     .input
-        //     .iter()
-        //     .map(|x| x.collect())
-        //     .unwrap_or_else(|| vec![]);
-
         if output_type == "xlsx" {
             return Ok(self.run_xlsx_mode(&self.input)?);
         }
 
         let mut vcf_reader = utils::open_vcf_from_path(self.input.get(0).map(|x| x.as_str()))?;
         let mut writer: Box<dyn TableWriter> = match output_type {
-            "csv" => Box::new(CSVWriter::new(autocompress::create_or_stdout(
-                self.output.as_deref(),
-                autocompress::CompressionLevel::Default,
-            )?)),
-            "tsv" => Box::new(TSVWriter::new(autocompress::create_or_stdout(
-                self.output.as_deref(),
-                autocompress::CompressionLevel::Default,
-            )?)),
+            "csv" => Box::new(CSVWriter::new(
+                autocompress::autodetect_create_or_stdout_prefer_bgzip(
+                    self.output.as_deref(),
+                    autocompress::CompressionLevel::Default,
+                )?,
+            )),
+            "tsv" => Box::new(TSVWriter::new(
+                autocompress::autodetect_create_or_stdout_prefer_bgzip(
+                    self.output.as_deref(),
+                    autocompress::CompressionLevel::Default,
+                )?,
+            )),
             _ => unreachable!(),
         };
         let config = create_config(&vcf_reader.header(), self)?;
@@ -312,7 +230,7 @@ pub fn create_config(
     let canonical_list = if let Some(canonical_file) = matches.canonical_list() {
         let mut canonical_list = HashSet::new();
 
-        let mut reader = BufReader::new(autocompress::open(canonical_file)?);
+        let mut reader = RayonReader::new(autocompress::autodetect_open(canonical_file)?);
         let mut buffer = Vec::new();
 
         while reader.read_until(b'\n', &mut buffer)? > 0 {

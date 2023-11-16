@@ -2,8 +2,8 @@ use crate::utils::fastq::*;
 use crate::utils::largereorder::LargeReorder;
 use crate::utils::{DigestWriter, IlluminaFASTQInfo};
 use anyhow::Context;
+use autocompress::io::{RayonReader, RayonWriter};
 use std::convert::TryFrom;
-use std::io;
 use std::str;
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
@@ -54,22 +54,29 @@ pub struct IlluminaFastqReorder {
 
 impl IlluminaFastqReorder {
     pub fn run(&self) -> Result<(), anyhow::Error> {
-        let iothread = autocompress::iothread::IoThread::new(self.thread);
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(self.thread)
+            .build_global()
+            .context("Failed to set # of threads")?;
 
-        let mut input_fastq = iothread
-            .open(&self.input)
-            .context("Cannot open input FASTQ")?;
+        let mut input_fastq = RayonReader::new(
+            autocompress::autodetect_open(&self.input).context("Cannot open input FASTQ")?,
+        );
 
         let mut output = DigestWriter::new(
-            iothread
-                .create(&self.output, autocompress::CompressionLevel::Default)
+            RayonWriter::new(
+                autocompress::autodetect_create(
+                    &self.output,
+                    autocompress::CompressionLevel::Default,
+                )
                 .context("Cannot open output FASTQ")?,
+            ),
             md5::Md5::default(),
         );
 
         let fastq_info = if let Some(fastq_info_path) = self.fastq_info.as_deref() {
-            Some(IlluminaFASTQInfo::load(io::BufReader::new(
-                autocompress::open(fastq_info_path).context("Cannot read FASTQ Info")?,
+            Some(IlluminaFASTQInfo::load(RayonReader::new(
+                autocompress::autodetect_open(fastq_info_path).context("Cannot read FASTQ Info")?,
             ))?)
         } else {
             None

@@ -1,4 +1,5 @@
 use crate::logic::sequencing_error::{Regions, SequencingErrorProcessor};
+use autocompress::io::RayonWriter;
 use bio::io::fasta;
 use clap::Args;
 use rust_htslib::bam;
@@ -30,10 +31,10 @@ pub struct SequencingError {
 
 impl SequencingError {
     pub fn run(&self) -> anyhow::Result<()> {
-        let writer = autocompress::create_or_stdout(
+        let writer = RayonWriter::new(autocompress::autodetect_create_or_stdout(
             self.output.as_deref(),
             autocompress::CompressionLevel::Default,
-        )?;
+        )?);
         let mut csv_writer = csv::WriterBuilder::new().flexible(true).from_writer(writer);
 
         let mut bam = bam::Reader::from_path(&self.bam)?;

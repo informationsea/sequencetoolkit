@@ -1,6 +1,8 @@
 use crate::utils::{DigestReader, NameType, DNBSEQ_REGEX, ILLUMINA_REGEX};
+use anyhow::Context;
+use autocompress::io::RayonWriter;
 use std::collections::HashMap;
-use std::io::{prelude::*, BufReader, BufWriter};
+use std::io::{prelude::*, BufReader};
 use std::str;
 
 #[derive(Debug, Clone, clap::Args)]
@@ -35,18 +37,23 @@ const INITIAL_LOAD_ENTRIES: u64 = 5000;
 
 impl FastqCheck {
     pub fn run(&self) -> Result<(), anyhow::Error> {
-        let iothread = autocompress::iothread::IoThread::new(self.thread);
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(self.thread)
+            .build_global()
+            .context("Failed to set # of threads")?;
 
-        let mut output = BufWriter::new(autocompress::create_or_stdout(
+        let mut output = RayonWriter::new(autocompress::autodetect_create_or_stdout_prefer_bgzip(
             self.output.as_deref(),
             autocompress::CompressionLevel::Default,
         )?);
 
         let summary_output = if let Some(summary_output) = self.summary_output.as_deref() {
-            Some(autocompress::create(
-                summary_output,
-                autocompress::CompressionLevel::Default,
-            )?)
+            Some(RayonWriter::new(
+                autocompress::autodetect_create_prefer_bgzip(
+                    summary_output,
+                    autocompress::CompressionLevel::Default,
+                )?,
+            ))
         } else {
             None
         };
@@ -54,7 +61,7 @@ impl FastqCheck {
         writeln!(output, "FASTQ1\t{}", self.fastq1)?;
         writeln!(output, "FASTQ2\t{}", self.fastq2)?;
 
-        match check_order(iothread, &self.fastq1, &self.fastq2, &mut output) {
+        match check_order(&self.fastq1, &self.fastq2, &mut output) {
             Ok(summary) => {
                 if let Some(mut summary_output) = summary_output {
                     writeln!(
@@ -99,16 +106,19 @@ struct FastqVerifyResult {
 }
 
 fn check_order(
-    iothread: autocompress::iothread::IoThread,
     input_fastq1_path: impl AsRef<std::path::Path>,
     input_fastq2_path: impl AsRef<std::path::Path>,
     output: &mut impl Write,
 ) -> anyhow::Result<FastqVerifyResult> {
-    let mut input_fastq1_md5_reader =
-        DigestReader::new(iothread.open(input_fastq1_path)?, md5::Md5::default());
+    let mut input_fastq1_md5_reader = DigestReader::new(
+        autocompress::autodetect_open(input_fastq1_path)?,
+        md5::Md5::default(),
+    );
 
-    let mut input_fastq2_md5_reader =
-        DigestReader::new(iothread.open(input_fastq2_path)?, md5::Md5::default());
+    let mut input_fastq2_md5_reader = DigestReader::new(
+        autocompress::autodetect_open(input_fastq2_path)?,
+        md5::Md5::default(),
+    );
 
     let mut input_fastq1 = FastqReadnameReader::new(BufReader::new(&mut input_fastq1_md5_reader));
     let mut input_fastq2 = FastqReadnameReader::new(BufReader::new(&mut input_fastq2_md5_reader));

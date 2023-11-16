@@ -1,3 +1,4 @@
+use anyhow::Context;
 use clap::Parser;
 use std::io::prelude::*;
 use std::{collections::HashMap, io::BufRead};
@@ -15,8 +16,11 @@ pub struct IndexCount {
 
 impl IndexCount {
     pub fn run(&self) -> anyhow::Result<()> {
-        let thread_pool = autocompress::iothread::IoThread::new(self.threads);
-        let fastq = thread_pool.open(&self.fastq)?;
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(self.threads)
+            .build_global()
+            .context("Failed to set # of threads")?;
+        let fastq = std::io::BufReader::new(autocompress::autodetect_open(&self.fastq)?);
         let mut output = std::io::BufWriter::new(std::fs::File::create(&self.output)?);
 
         let count = count_index(fastq)?;

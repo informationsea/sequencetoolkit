@@ -9,4 +9,5 @@ edition = "2021"
 [dependencies]
 clap = { version = "4", features = ["derive", "cargo"] }
 anyhow = "1"
-autocompress = "0.2.2"
+autocompress = "0.4.1"
+rayon = "1.8.0"

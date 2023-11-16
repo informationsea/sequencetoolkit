@@ -107,7 +107,7 @@ mod test {
     }
     #[test]
     fn test_scan_contig() -> Result<(), VCFUtilsError> {
-        let mut reader = BufReader::new(autocompress::open(
+        let mut reader = BufReader::new(autocompress::autodetect_open(
             "testfiles/SRP225680__ISMMS_pt_91_WES_TUMOR.hs37d5-filtered.snpeff.vcf.gz",
         )?);
         let contigs = scan_contig(&mut reader)?;

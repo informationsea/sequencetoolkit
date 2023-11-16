@@ -34,14 +34,15 @@ impl MergeBed {
     // }
 
     pub fn run(&self) -> anyhow::Result<()> {
-        let mut output = autocompress::create_or_stdout(
+        let mut output = autocompress::autodetect_create_or_stdout(
             self.output.as_ref(),
             autocompress::CompressionLevel::Default,
         )?;
         let mut merger = BedMerger::new();
         if let Some(inputs) = self.input.as_ref() {
             for one in inputs {
-                let mut input = BedReader::new(io::BufReader::new(autocompress::open(one)?));
+                let mut input =
+                    BedReader::new(io::BufReader::new(autocompress::autodetect_open(one)?));
                 let mut region = BedRegion::new();
                 while input.next(&mut region)? {
                     merger.add(&region)

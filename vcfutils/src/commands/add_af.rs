@@ -1,6 +1,7 @@
 use crate::logic::add_af;
 use crate::utils;
 use anyhow::Context;
+use autocompress::io::RayonWriter;
 use clap::Args;
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
@@ -49,10 +50,11 @@ pub struct AddAF {
 impl AddAF {
     pub fn run(&self) -> anyhow::Result<()> {
         let mut vcf_reader = utils::open_vcf_from_path(self.input.as_deref())?;
-        let mut vcf_writer = autocompress::create_or_stdout(
-            self.output.as_deref(),
-            autocompress::CompressionLevel::Default,
-        )?;
+        let mut vcf_writer =
+            RayonWriter::new(autocompress::autodetect_create_or_stdout_prefer_bgzip(
+                self.output.as_deref(),
+                autocompress::CompressionLevel::Default,
+            )?);
         let af_precision: usize = self.precision;
 
         let category_to_sample = if let Some(x) = self.category.as_ref() {

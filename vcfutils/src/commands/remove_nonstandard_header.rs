@@ -1,5 +1,6 @@
+use autocompress::io::{RayonReader, RayonWriter};
 use clap::Args;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Write};
 
 #[derive(Debug, Args)]
 #[command(
@@ -18,11 +19,12 @@ pub struct RemoveNonStandardHeader {
 
 impl RemoveNonStandardHeader {
     pub fn run(&self) -> anyhow::Result<()> {
-        let mut reader = io::BufReader::new(autocompress::open_or_stdin(self.input.as_deref())?);
-        let mut writer = autocompress::create_or_stdout(
+        let mut reader =
+            RayonReader::new(autocompress::autodetect_open_or_stdin(self.input.clone())?);
+        let mut writer = RayonWriter::new(autocompress::autodetect_create_or_stdout_prefer_bgzip(
             self.input.as_deref(),
             autocompress::CompressionLevel::Default,
-        )?;
+        )?);
 
         let mut header_file_format: Vec<Vec<u8>> = Vec::new();
         let mut header_info: Vec<Vec<u8>> = Vec::new();

@@ -97,7 +97,7 @@ fn create_db(
     fasta: &str,
     reference_name: Option<&str>,
 ) -> Result<(), crate::GeneAnnotError> {
-    let db_reader = autocompress::open(ref_gene)?;
+    let db_reader = autocompress::autodetect_open(ref_gene)?;
     let output_writer = GzEncoder::new(File::create(output)?, Compression::default());
     let fasta_reader = IndexedReader::from_file(&fasta)?;
     let reference_name = reference_name.unwrap_or_else(|| {

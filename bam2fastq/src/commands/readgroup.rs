@@ -1,9 +1,10 @@
 use crate::utils::{aux_to_str, DNBSEQ_REGEX_IN_BAM, ILLUMINA_REGEX_IN_BAM};
+use autocompress::io::RayonWriter;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use rust_htslib::bam::{self, Read};
 use std::collections::HashSet;
-use std::io::{BufWriter, Write};
+use std::io::Write;
 use std::str;
 
 #[derive(Debug, Clone, clap::Args)]
@@ -50,7 +51,7 @@ impl CountReadGroup {
             bam::Reader::from_stdin()
         }?;
 
-        let mut output = BufWriter::new(autocompress::create_or_stdout(
+        let mut output = RayonWriter::new(autocompress::autodetect_create_or_stdout(
             self.output.as_deref(),
             autocompress::CompressionLevel::Default,
         )?);

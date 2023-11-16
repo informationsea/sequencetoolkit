@@ -1,6 +1,7 @@
 use crate::error::VCFUtilsError;
 use crate::logic::replace_sample::replace_sample;
 use crate::utils::{self, Mapping};
+use autocompress::io::RayonWriter;
 use clap::Args;
 use rand::prelude::*;
 use std::collections::HashMap;
@@ -31,10 +32,10 @@ pub struct ReplaceSampleName {
 impl ReplaceSampleName {
     pub fn run(&self) -> anyhow::Result<()> {
         let mut reader = utils::open_vcf_from_path(self.input.as_deref())?;
-        let mut writer = autocompress::create_or_stdout(
-            self.output.as_deref(),
+        let mut writer = RayonWriter::new(autocompress::autodetect_create_or_stdout_prefer_bgzip(
+            self.output.clone(),
             autocompress::CompressionLevel::Default,
-        )?;
+        )?);
 
         let (mapping, order): (HashMap<U8Vec, U8Vec>, Vec<U8Vec>) = create_sample_mapping(
             &reader,

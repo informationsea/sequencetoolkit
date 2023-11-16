@@ -79,11 +79,13 @@ impl ExtendBed {
         let expand_start: u64 = self.expand_start.unwrap_or_else(|| self.expand.unwrap());
         let expand_end: u64 = self.expand_end.unwrap_or_else(|| self.expand.unwrap());
 
-        let mut output = BedWriter::new(io::BufWriter::new(autocompress::create_or_stdout(
-            self.output.as_deref(),
-            autocompress::CompressionLevel::Default,
-        )?));
-        let mut input = BedReader::new(io::BufReader::new(autocompress::open_or_stdin(
+        let mut output = BedWriter::new(io::BufWriter::new(
+            autocompress::autodetect_create_or_stdout(
+                self.output.as_deref(),
+                autocompress::CompressionLevel::Default,
+            )?,
+        ));
+        let mut input = BedReader::new(io::BufReader::new(autocompress::autodetect_open_or_stdin(
             self.input.as_deref(),
         )?));
         let mut record = BedRegion::new();
@@ -130,7 +132,7 @@ mod test {
         ]);
         cli.extend_bed.run()?;
 
-        let mut reader = BedReader::new(io::BufReader::new(autocompress::open(
+        let mut reader = BedReader::new(io::BufReader::new(autocompress::autodetect_open(
             "../target/expanded.bed",
         )?));
 
@@ -163,7 +165,7 @@ mod test {
         ]);
         cli.extend_bed.run()?;
 
-        let mut reader = BedReader::new(io::BufReader::new(autocompress::open(
+        let mut reader = BedReader::new(io::BufReader::new(autocompress::autodetect_open(
             "../target/expanded2.bed",
         )?));
 

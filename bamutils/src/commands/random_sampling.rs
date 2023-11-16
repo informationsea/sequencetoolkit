@@ -20,46 +20,6 @@ pub struct RandomSampling {
 }
 
 impl RandomSampling {
-    // fn config_subcommand(&self, app: App<'static, 'static>) -> App<'static, 'static> {
-    //     app.about("Count sequencing error")
-    //         .arg(
-    //             Arg::with_name("bam")
-    //                 .index(1)
-    //                 .takes_value(true)
-    //                 .required(true)
-    //                 .help("Input BAM/CRAM file"),
-    //         )
-    //         .arg(
-    //             Arg::with_name("sampling-rate")
-    //                 .short("r")
-    //                 .long("sampling-rate")
-    //                 .required(true)
-    //                 .takes_value(true)
-    //                 .help("Sampling rate"),
-    //         )
-    //         .arg(
-    //             Arg::with_name("reference")
-    //                 .short("T")
-    //                 .long("reference")
-    //                 .takes_value(true)
-    //                 .help("Reference FASTA"),
-    //         )
-    //         .arg(
-    //             Arg::with_name("output")
-    //                 .short("o")
-    //                 .long("output")
-    //                 .required(true)
-    //                 .takes_value(true),
-    //         )
-    //         .arg(
-    //             Arg::with_name("threads")
-    //                 .short("t")
-    //                 .long("threads")
-    //                 .takes_value(true)
-    //                 .help("# of threads to write output file"),
-    //         )
-    // }
-
     pub fn run(&self) -> anyhow::Result<()> {
         run(
             &self.bam,

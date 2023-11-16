@@ -11,7 +11,7 @@ clap = { version = "4", features = ["derive", "cargo"] }
 bio = "1.4.0"
 bio-types = "1"
 #failure = "0.1"
-autocompress = "0.2"
+autocompress = "0.4"
 vcf = "0.6"
 csv = "1"
 xlsxwriter = { version = "0.6", features = ["no-md5", "system-zlib"] }
@@ -24,4 +24,3 @@ itoa = "^0.4.6"
 log = "0.4"
 anyhow = "1"
 thiserror = "1"
-bgzip = "0.3.1"

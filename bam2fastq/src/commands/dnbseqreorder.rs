@@ -1,8 +1,9 @@
 use crate::utils::fastq::*;
 use crate::utils::largereorder::LargeReorder;
 use crate::utils::{DNBSeqFASTQInfo, DigestWriter};
+use anyhow::Context;
+use autocompress::io::{RayonReader, RayonWriter};
 use clap::{Args, ValueEnum};
-use std::io;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum Read {
@@ -43,19 +44,24 @@ pub struct DNBSeqFastqReorder {
 
 impl DNBSeqFastqReorder {
     pub fn run(&self) -> Result<(), anyhow::Error> {
-        let iothread = autocompress::iothread::IoThread::new(self.thread);
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(self.thread)
+            .build_global()
+            .context("Failed to set # of threads")?;
 
-        let mut input_fastq = iothread.open(self.input.as_str())?;
+        let mut input_fastq = RayonReader::new(
+            autocompress::autodetect_open(&self.input).context("Failed to open input FASTQ")?,
+        );
 
         let mut output = DigestWriter::new(
-            iothread.create(
-                self.output.as_str(),
+            RayonWriter::new(autocompress::autodetect_create(
+                &self.output,
                 autocompress::CompressionLevel::Default,
-            )?,
+            )?),
             md5::Md5::default(),
         );
 
-        let fastq_info = DNBSeqFASTQInfo::load(io::BufReader::new(autocompress::open(
+        let fastq_info = DNBSeqFASTQInfo::load(RayonReader::new(autocompress::autodetect_open(
             self.fastq_info.as_str(),
         )?))?;
 

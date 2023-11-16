@@ -3,6 +3,7 @@ use crate::commands::vcf2csv::TableConfig;
 use crate::logic::generate_sql::generate_sql;
 use crate::utils;
 use clap::Args;
+use std::io::prelude::*;
 use std::str;
 
 #[derive(Debug, Args)]
@@ -94,7 +95,7 @@ impl GenerateSql {
 
     pub fn run(&self) -> anyhow::Result<()> {
         let vcf_reader = utils::open_vcf_from_path(self.input.as_deref())?;
-        let mut output = autocompress::create_or_stdout(
+        let mut output = autocompress::autodetect_create_or_stdout_prefer_bgzip(
             self.output.as_deref(),
             autocompress::CompressionLevel::Default,
         )?;
