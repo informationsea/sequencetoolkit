@@ -98,6 +98,24 @@ jobs:
           use-cross: ${{ matrix.config.cross }}
           command: build
           args: --release --target ${{ matrix.config.target }}
+      - name: Test vcfutils logic
+        if: ${{ matrix.config.test }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release --target ${{ matrix.config.target }} -p vcfutils --lib -- logic
+      - name: Test vcfutils commands
+        if: ${{ matrix.config.test }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release --target ${{ matrix.config.target }} -p vcfutils --lib -- commands
+      - name: Test vcfutils logic
+        if: ${{ matrix.config.test }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release --target ${{ matrix.config.target }} -p vcfutils --lib
       - name: Test
         if: ${{ matrix.config.test }}
         uses: actions-rs/cargo@v1

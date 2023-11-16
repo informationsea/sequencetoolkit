@@ -6,6 +6,11 @@ Toolkit for Genome Sequence Analysis
 
 ## Features
 
+### BAM2FASTQ Utilities
+
+1. Convert mapped and coordinate sorted BAM file to FASTQ
+2. Reorder FASTQ entries
+
 ### BED Utilities
 
 1. Merge overlapped regions

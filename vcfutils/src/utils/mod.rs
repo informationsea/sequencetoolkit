@@ -2,19 +2,18 @@ pub mod recalc_af;
 pub mod tablewriter;
 
 use crate::error::VCFUtilsError;
-use autocompress::io::RayonReader;
 use csv::Reader as CSVReader;
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
+use std::{collections::HashMap, io::BufReader};
 use vcf::{U8Vec, VCFReader};
 
 pub fn open_vcf_from_path<P: AsRef<Path>>(
     path: Option<P>,
 ) -> Result<VCFReader<impl BufRead>, VCFUtilsError> {
     let path = path.map(|x| x.as_ref().to_path_buf());
-    VCFReader::new(RayonReader::new(autocompress::autodetect_open_or_stdin(
+    VCFReader::new(BufReader::new(autocompress::autodetect_open_or_stdin(
         path,
     )?))
     .map_err(|e| e.into())

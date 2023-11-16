@@ -55,13 +55,13 @@ fn create_sample_mapping<R: BufRead>(
     sequential: bool,
     random: bool,
 ) -> Result<(HashMap<U8Vec, U8Vec>, Vec<U8Vec>), VCFUtilsError> {
-    let mut rnd = StdRng::from_entropy();
     Ok(if sequential {
         let header = reader.header();
         let mut original_names = header.samples().to_vec();
         //dbg!(original_names.len());
 
         if random {
+            let mut rnd = StdRng::from_entropy();
             original_names.shuffle(&mut rnd);
         }
 
@@ -88,6 +88,7 @@ fn create_sample_mapping<R: BufRead>(
             false,
         )?)?;
         if random {
+            let mut rnd = StdRng::from_entropy();
             value_order.shuffle(&mut rnd);
         }
         (mapping, value_order)
@@ -99,7 +100,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_create_mapping() -> Result<(), VCFUtilsError> {
+    fn test_create_mapping1() -> Result<(), VCFUtilsError> {
         //eprintln!("start");
         let vcf_data = include_bytes!("../../testfiles/1kGP-subset.vcf");
         //eprintln!("start data");
@@ -142,6 +143,14 @@ mod test {
                 || mapping_expected != mapping3
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_create_mapping2() -> Result<(), VCFUtilsError> {
+        let vcf_data = include_bytes!("../../testfiles/1kGP-subset.vcf");
+        let vcf_reader = VCFReader::new(&vcf_data[..])?;
+
         // with mapping file
         let (mapping, order) = create_sample_mapping(
             &vcf_reader,
@@ -170,6 +179,22 @@ mod test {
         .map(|(x, y)| (x.to_vec(), y.to_vec()))
         .collect::<HashMap<_, _>>();
         assert_eq!(mapping, mapping_expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_create_mapping3() -> Result<(), VCFUtilsError> {
+        let vcf_data = include_bytes!("../../testfiles/1kGP-subset.vcf");
+        let vcf_reader = VCFReader::new(&vcf_data[..])?;
+
+        // with mapping file
+        let (_mapping, _order) = create_sample_mapping(
+            &vcf_reader,
+            Some("./testfiles/1kGP-mapping.csv"),
+            false,
+            true,
+        )?;
 
         Ok(())
     }
