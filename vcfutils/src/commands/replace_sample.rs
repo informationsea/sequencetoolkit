@@ -4,6 +4,7 @@ use crate::utils::{self, Mapping};
 use autocompress::io::RayonWriter;
 use clap::Args;
 use rand::prelude::*;
+use rand::SeedableRng;
 use std::collections::HashMap;
 use std::io::BufRead;
 use vcf::{U8Vec, VCFReader};
@@ -54,12 +55,16 @@ fn create_sample_mapping<R: BufRead>(
     sequential: bool,
     random: bool,
 ) -> Result<(HashMap<U8Vec, U8Vec>, Vec<U8Vec>), VCFUtilsError> {
-    let mut rnd = thread_rng();
+    let mut rnd = StdRng::from_entropy();
     Ok(if sequential {
-        let mut original_names = reader.header().samples().to_vec();
+        let header = reader.header();
+        let mut original_names = header.samples().to_vec();
+        //dbg!(original_names.len());
+
         if random {
             original_names.shuffle(&mut rnd);
         }
+
         let new_names: Vec<_> = original_names
             .iter()
             .enumerate()
@@ -95,9 +100,13 @@ mod test {
 
     #[test]
     fn test_create_mapping() -> Result<(), VCFUtilsError> {
+        //eprintln!("start");
         let vcf_data = include_bytes!("../../testfiles/1kGP-subset.vcf");
+        //eprintln!("start data");
         let vcf_reader = VCFReader::new(&vcf_data[..])?;
+        //eprintln!("start reader");
         let (mapping, order) = create_sample_mapping(&vcf_reader, None, true, false)?;
+        //eprintln!("mapping");
         let order_expected = vec![
             b"sample_1".to_vec(),
             b"sample_2".to_vec(),
@@ -105,7 +114,9 @@ mod test {
             b"sample_4".to_vec(),
             b"sample_5".to_vec(),
         ];
+        //eprintln!("expected");
         assert_eq!(order, order_expected);
+        //eprintln!("{:?}", mapping);
 
         let mapping_expected = [
             (b"SRP150637__HG00099", b"sample_1"),
