@@ -1,5 +1,6 @@
 use crate::error::VCFUtilsError;
 use crate::utils::tablewriter::{TableWriter, XlsxDataType, XlsxSheetWriter};
+use anyhow::Context;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while1};
 use nom::character::is_digit;
@@ -16,7 +17,9 @@ pub struct VCF2CSVConfig {
     pub split_multi_allelic: bool,
     pub decoded_genotype: bool,
     pub canonical_list: Option<HashSet<U8Vec>>,
+    pub priority_info_list: Vec<U8Vec>,
     pub info_list: Vec<U8Vec>,
+    pub priority_format_list: Vec<U8Vec>,
     pub format_list: Vec<U8Vec>,
     pub replace_sample_name: Option<Vec<U8Vec>>,
     pub group_names: Option<Vec<U8Vec>>,
@@ -28,6 +31,22 @@ pub enum SnpEffImpact {
     Moderate,
     Low,
     Modifier,
+}
+
+impl TryFrom<&[u8]> for SnpEffImpact {
+    type Error = VCFUtilsError;
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        match value {
+            b"HIGH" => Ok(SnpEffImpact::High),
+            b"MODERATE" => Ok(SnpEffImpact::Moderate),
+            b"LOW" => Ok(SnpEffImpact::Low),
+            b"MODIFIER" => Ok(SnpEffImpact::Modifier),
+            _ => Err(VCFUtilsError::InvalidSnpEffImpact(format!(
+                "Invalid impact: {}",
+                String::from_utf8_lossy(value)
+            ))),
+        }
+    }
 }
 
 impl SnpEffImpact {
@@ -46,6 +65,7 @@ pub enum HeaderType {
     GroupName,
     VcfLine,
     AltIndex,
+    CanonicalChange,
     GeneChange,
     GeneName,
     TranscriptName,
@@ -59,6 +79,7 @@ pub enum HeaderType {
     QUAL,
     FILTER,
     SnpEff,
+    SnpEffHighestImpact,
     SnpEffImpact(SnpEffImpact),
     Info(U8Vec, vcf::Number, vcf::ValueType, i32, String),
     // Genotype: SampleName, FormatID, Number, Type, Index, Description, ReplacedSampleName
@@ -71,6 +92,8 @@ pub enum HeaderType {
         String,
         Option<U8Vec>,
     ),
+    // Variant Allele Frequency (VAF): SampleName, ReplacedSampleName
+    VAF(U8Vec, Option<U8Vec>),
     Empty,
 }
 
@@ -102,12 +125,28 @@ fn add_number_suffix(
     Ok(())
 }
 
+impl HeaderType {
+    pub fn column_size(&self) -> f64 {
+        match self {
+            HeaderType::GroupName => 13.0,
+            HeaderType::CanonicalChange => 35.0,
+            HeaderType::POS => 10.,
+            HeaderType::ID => 12.,
+            HeaderType::SnpEffHighestImpact => 10.,
+            HeaderType::SnpEff => 50.,
+            HeaderType::SnpEffImpact(_) => 20.,
+            _ => xlsxwriter::worksheet::LXW_DEF_COL_WIDTH,
+        }
+    }
+}
+
 impl ToString for HeaderType {
     fn to_string(&self) -> String {
         match self {
             HeaderType::GroupName => "Group Name".to_string(),
             HeaderType::VcfLine => "#".to_string(),
             HeaderType::AltIndex => "alt #".to_string(),
+            HeaderType::CanonicalChange => "Canonical Gene".to_string(),
             HeaderType::GeneChange => "Gene change".to_string(),
             HeaderType::GeneName => "Gene".to_string(),
             HeaderType::TranscriptName => "Transcript".to_string(),
@@ -142,7 +181,12 @@ impl ToString for HeaderType {
                 add_number_suffix(&mut s, num, *index).unwrap();
                 s
             }
+            HeaderType::VAF(name, replace_sample_name) => {
+                let name = replace_sample_name.as_ref().unwrap_or(name);
+                format!("{}__VAF", String::from_utf8_lossy(name))
+            }
             HeaderType::SnpEffImpact(impact) => format!("GeneImpact__{}", impact.to_str()),
+            HeaderType::SnpEffHighestImpact => "SnpEff Impact".to_string(),
             HeaderType::SnpEff => "SnpEff".to_string(),
             HeaderType::Empty => "".to_string(),
         }
@@ -150,43 +194,47 @@ impl ToString for HeaderType {
 }
 
 pub fn create_header_line(header: &VCFHeader, config: &VCF2CSVConfig) -> Vec<HeaderType> {
-    let mut header_items = vec![
-        HeaderType::VcfLine,
+    let mut header_items = vec![HeaderType::VcfLine];
+
+    if config.group_names.is_some() {
+        header_items.push(HeaderType::GroupName);
+    }
+
+    if config.split_multi_allelic {
+        header_items.push(HeaderType::AltIndex);
+    }
+
+    header_items.append(&mut vec![
         HeaderType::CHROM,
         HeaderType::POS,
         HeaderType::ID,
         HeaderType::REF,
         HeaderType::ALT,
-        HeaderType::QUAL,
-        HeaderType::FILTER,
-    ];
-
-    if config.group_names.is_some() {
-        header_items.insert(0, HeaderType::GroupName);
-    }
-
-    if config.split_multi_allelic {
-        header_items.insert(1, HeaderType::AltIndex);
-    }
+    ]);
 
     if header.info(b"ANN").is_some() {
-        header_items.insert(2, HeaderType::SnpEff);
-        header_items.insert(3, HeaderType::SnpEffImpact(SnpEffImpact::High));
-        header_items.insert(4, HeaderType::SnpEffImpact(SnpEffImpact::Moderate));
-        header_items.insert(5, HeaderType::SnpEffImpact(SnpEffImpact::Low));
-        header_items.insert(6, HeaderType::SnpEffImpact(SnpEffImpact::Modifier));
-
         if config.canonical_list.is_some() {
-            header_items.insert(2, HeaderType::GeneChange);
-            header_items.insert(3, HeaderType::GeneName);
-            header_items.insert(4, HeaderType::TranscriptName);
-            header_items.insert(5, HeaderType::AminoChange);
-            header_items.insert(6, HeaderType::CDSChange);
-        }
+            header_items.append(&mut vec![HeaderType::CanonicalChange]);
+        };
+        header_items.append(&mut vec![HeaderType::SnpEffHighestImpact]);
     }
 
-    for one_info in &config.info_list {
-        let info = header.info(one_info).unwrap();
+    for (sample_index, one_sample) in header.samples().iter().enumerate() {
+        header_items.push(HeaderType::VAF(
+            one_sample.to_vec(),
+            config
+                .replace_sample_name
+                .as_ref()
+                .map(|x| x.get(sample_index).map(|y| y.to_vec()))
+                .flatten(),
+        ));
+    }
+
+    let add_info = |one_info: &[u8], header_items: &mut Vec<HeaderType>| {
+        let info = header.info(one_info).expect(&format!(
+            "{} is not found in format list",
+            String::from_utf8_lossy(one_info)
+        ));
         match info.number {
             vcf::Number::Number(x) => {
                 for i in 0..*x {
@@ -225,64 +273,25 @@ pub fn create_header_line(header: &VCFHeader, config: &VCF2CSVConfig) -> Vec<Hea
                 ));
             }
         }
-    }
+    };
 
-    for (sample_index, one_sample) in header.samples().iter().enumerate() {
-        for one_format in &config.format_list {
-            let format = header.format(one_format).unwrap();
-            match format.number {
-                vcf::Number::Number(x) => {
-                    for i in 0..*x {
-                        header_items.push(HeaderType::Genotype(
-                            one_sample.to_vec(),
-                            one_format.to_vec(),
-                            format.number.clone(),
-                            format.value_type.clone(),
-                            i,
-                            str::from_utf8(format.description).unwrap().to_string(),
-                            config
-                                .replace_sample_name
-                                .as_ref()
-                                .map(|x| x.get(sample_index).map(|y| y.to_vec()))
-                                .flatten(),
-                        ));
-                    }
-                }
-                vcf::Number::Reference => {
+    let add_format = |sample_index: usize,
+                      one_sample: &[u8],
+                      one_format: &[u8],
+                      header_items: &mut Vec<HeaderType>| {
+        let format = header.format(one_format).expect(&format!(
+            "{} is not found in format list",
+            String::from_utf8_lossy(one_format)
+        ));
+        match format.number {
+            vcf::Number::Number(x) => {
+                for i in 0..*x {
                     header_items.push(HeaderType::Genotype(
                         one_sample.to_vec(),
                         one_format.to_vec(),
                         format.number.clone(),
                         format.value_type.clone(),
-                        0,
-                        str::from_utf8(format.description).unwrap().to_string(),
-                        config
-                            .replace_sample_name
-                            .as_ref()
-                            .map(|x| x.get(sample_index).map(|y| y.to_vec()))
-                            .flatten(),
-                    ));
-                    header_items.push(HeaderType::Genotype(
-                        one_sample.to_vec(),
-                        one_format.to_vec(),
-                        format.number.clone(),
-                        format.value_type.clone(),
-                        1,
-                        str::from_utf8(format.description).unwrap().to_string(),
-                        config
-                            .replace_sample_name
-                            .as_ref()
-                            .map(|x| x.get(sample_index).map(|y| y.to_vec()))
-                            .flatten(),
-                    ));
-                }
-                _ => {
-                    header_items.push(HeaderType::Genotype(
-                        one_sample.to_vec(),
-                        one_format.to_vec(),
-                        format.number.clone(),
-                        format.value_type.clone(),
-                        0,
+                        i,
                         str::from_utf8(format.description).unwrap().to_string(),
                         config
                             .replace_sample_name
@@ -292,6 +301,89 @@ pub fn create_header_line(header: &VCFHeader, config: &VCF2CSVConfig) -> Vec<Hea
                     ));
                 }
             }
+            vcf::Number::Reference => {
+                header_items.push(HeaderType::Genotype(
+                    one_sample.to_vec(),
+                    one_format.to_vec(),
+                    format.number.clone(),
+                    format.value_type.clone(),
+                    0,
+                    str::from_utf8(format.description).unwrap().to_string(),
+                    config
+                        .replace_sample_name
+                        .as_ref()
+                        .map(|x| x.get(sample_index).map(|y| y.to_vec()))
+                        .flatten(),
+                ));
+                header_items.push(HeaderType::Genotype(
+                    one_sample.to_vec(),
+                    one_format.to_vec(),
+                    format.number.clone(),
+                    format.value_type.clone(),
+                    1,
+                    str::from_utf8(format.description).unwrap().to_string(),
+                    config
+                        .replace_sample_name
+                        .as_ref()
+                        .map(|x| x.get(sample_index).map(|y| y.to_vec()))
+                        .flatten(),
+                ));
+            }
+            _ => {
+                header_items.push(HeaderType::Genotype(
+                    one_sample.to_vec(),
+                    one_format.to_vec(),
+                    format.number.clone(),
+                    format.value_type.clone(),
+                    0,
+                    str::from_utf8(format.description).unwrap().to_string(),
+                    config
+                        .replace_sample_name
+                        .as_ref()
+                        .map(|x| x.get(sample_index).map(|y| y.to_vec()))
+                        .flatten(),
+                ));
+            }
+        }
+    };
+
+    for one_info in &config.priority_info_list {
+        add_info(one_info, &mut header_items);
+    }
+
+    for (sample_index, one_sample) in header.samples().iter().enumerate() {
+        for one_format in &config.priority_format_list {
+            add_format(sample_index, &one_sample, &one_format, &mut header_items);
+        }
+    }
+
+    if header.info(b"ANN").is_some() {
+        header_items.append(&mut vec![
+            HeaderType::SnpEff,
+            HeaderType::SnpEffImpact(SnpEffImpact::High),
+            HeaderType::SnpEffImpact(SnpEffImpact::Moderate),
+            HeaderType::SnpEffImpact(SnpEffImpact::Low),
+            HeaderType::SnpEffImpact(SnpEffImpact::Modifier),
+        ]);
+
+        // if config.canonical_list.is_some() {
+        //     header_items.insert(2, HeaderType::CanonicalChange);
+        //     header_items.insert(3, HeaderType::GeneName);
+        //     header_items.insert(4, HeaderType::TranscriptName);
+        //     header_items.insert(5, HeaderType::AminoChange);
+        //     header_items.insert(6, HeaderType::CDSChange);
+        // }
+    }
+
+    header_items.append(&mut vec![HeaderType::QUAL, HeaderType::FILTER]);
+
+    for one_info in &config.info_list {
+        add_info(one_info, &mut header_items);
+    }
+
+    for (sample_index, one_sample) in header.samples().iter().enumerate() {
+        for one_format in &config.format_list {
+            add_format(sample_index, &one_sample, &one_format, &mut header_items);
         }
     }
 
@@ -376,6 +468,65 @@ fn write_value_for_snpeff_ann(
     Ok(())
 }
 
+fn write_canonical_snpeff(
+    record: &VCFRecord,
+    writer: &mut U8Vec,
+    alt_index: Option<usize>,
+    canonical_list: Option<&HashSet<U8Vec>>,
+) -> Result<(), VCFUtilsError> {
+    if let Some(canonical_list) = canonical_list {
+        if let Some(snpeff_record) = record.info(b"ANN") {
+            let alt_genotype: Option<&[u8]> = alt_index.map(|x| &record.alternative[x][..]);
+            let mut first = true;
+
+            let snpeff_parsed = snpeff_record
+                .iter()
+                .map(|x| x.split(|y| *y == b'|').collect::<Vec<_>>())
+                .filter(|x| alt_genotype.is_none() || alt_genotype == Some(x[0]))
+                .filter(|x| canonical_list.contains(x[6]))
+                .collect::<Vec<_>>();
+
+            let mut highest_impact = SnpEffImpact::Modifier;
+            for one in snpeff_parsed.iter() {
+                highest_impact = highest_impact.min(one[2].try_into()?);
+            }
+
+            let have_protein_changed = snpeff_parsed.iter().any(|x| !x[10].is_empty());
+
+            for ann in snpeff_parsed {
+                if !have_protein_changed || !ann[10].is_empty() {
+                    let transcript = ann[6];
+                    let gene = ann[3];
+                    let impact: SnpEffImpact = ann[2].try_into()?;
+                    if (impact < SnpEffImpact::Moderate && impact < highest_impact)
+                        || impact == SnpEffImpact::Modifier
+                    {
+                        continue;
+                    }
+
+                    if first {
+                        first = false;
+                    } else {
+                        write!(writer, ", ")?;
+                    }
+                    write!(
+                        writer,
+                        "{}({}):",
+                        str::from_utf8(transcript)?,
+                        str::from_utf8(gene)?
+                    )?;
+                    if ann[10].is_empty() {
+                        write!(writer, "{}", str::from_utf8(ann[9])?)?;
+                    } else {
+                        write!(writer, "{}", str::from_utf8(ann[10])?)?
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn write_snpeff_all(
     record: &VCFRecord,
     writer: &mut U8Vec,
@@ -440,6 +591,31 @@ fn write_impact_gene(
             }
             writer.extend_from_slice(one);
         }
+    }
+    Ok(())
+}
+
+fn write_snpeff_impact(
+    record: &VCFRecord,
+    writer: &mut U8Vec,
+    alt_index: Option<usize>,
+    canonical_list: Option<&HashSet<U8Vec>>,
+) -> Result<(), VCFUtilsError> {
+    if let Some(snpeff_record) = record.info(b"ANN") {
+        let alt_genotype: Option<&[u8]> = alt_index.map(|x| &record.alternative[x][..]);
+
+        let snpeff_parsed = snpeff_record
+            .iter()
+            .map(|x| x.split(|y| *y == b'|').collect::<Vec<_>>())
+            .filter(|x| alt_genotype.is_none() || alt_genotype == Some(x[0]))
+            .filter(|x| canonical_list.map(|y| y.contains(x[6])).unwrap_or(true))
+            .collect::<Vec<_>>();
+
+        let mut impact = SnpEffImpact::Modifier;
+        for one in snpeff_parsed.iter() {
+            impact = impact.min(one[2].try_into()?);
+        }
+        write!(writer, "{}", impact.to_str())?;
     }
     Ok(())
 }
@@ -557,6 +733,7 @@ pub fn vcf2table_set_data_type(
                 vcf::ValueType::Float | vcf::ValueType::Integer => XlsxDataType::Number,
                 _ => XlsxDataType::String,
             },
+            HeaderType::VAF(_, _) => XlsxDataType::Formula,
             _ => XlsxDataType::String,
         })
         .collect();
@@ -572,6 +749,12 @@ pub fn vcf2table_set_data_type(
             HeaderType::SnpEff => {
                 "All transcript annotation by snpEff".to_string()
             }
+            HeaderType::VAF(sample_name, replaced_sample_name) => {
+                let name = replaced_sample_name.as_ref().unwrap_or(sample_name);
+                format!("Variant Allele Frequency for {}", String::from_utf8_lossy(name))
+            }
+            HeaderType::CanonicalChange => "Canonical transcript change".to_string(),
+            HeaderType::SnpEffHighestImpact => "Highest impact of SnpEff".to_string(),
             _ => "".to_string(),
         })
         .collect();
@@ -589,7 +772,7 @@ fn setup_row(
     alt_index: Option<usize>,
     translate_genotype: bool,
     canonical_list: Option<&HashSet<U8Vec>>,
-) -> Result<(), VCFUtilsError> {
+) -> anyhow::Result<()> {
     for (header, column) in header_contents.iter().zip(row.iter_mut()) {
         column.clear();
         match header {
@@ -605,6 +788,9 @@ fn setup_row(
                 if let Some(alt_index) = alt_index {
                     write!(column, "{}", alt_index + 1)?;
                 }
+            }
+            HeaderType::CanonicalChange => {
+                write_canonical_snpeff(record, column, alt_index, canonical_list)?
             }
             HeaderType::GeneChange => {
                 write_canonical_gene(record, column, alt_index, header, canonical_list)?
@@ -672,6 +858,49 @@ fn setup_row(
                     }
                 }
             }
+            HeaderType::VAF(sample_name, _) => {
+                let dp: Option<u32> = record
+                    .genotype(sample_name, b"DP")
+                    .map(|x| x.get(0))
+                    .flatten()
+                    .map(|x| String::from_utf8_lossy(&x[..]).parse())
+                    .transpose()
+                    .context("Failed to parse DP")?;
+                let ad: Option<Vec<u32>> = record.genotype(sample_name, b"AD").map(|x| {
+                    x.iter()
+                        .map(|x| {
+                            String::from_utf8_lossy(x)
+                                .parse()
+                                .expect("Failed to parse AD")
+                        })
+                        .collect()
+                });
+
+                if let (Some(dp), Some(ad)) = (dp, ad) {
+                    if let Some(alt_index) = alt_index {
+                        if let Some(ad) = ad.get(alt_index + 1) {
+                            write!(column, "={}/{}", *ad, dp)?;
+                        }
+                    } else {
+                        write!(column, "=\"")?;
+                        let mut first = true;
+                        for ad in ad.iter().skip(1) {
+                            if first {
+                                first = false;
+                            } else {
+                                write!(column, ",")?;
+                            }
+                            write!(column, "{:.3}", *ad as f64 / dp as f64)?;
+                        }
+                        write!(column, "\"")?;
+                    }
+                }
+
+                //let dp = record.genotype(sample_name, b"AD").map(|x| x.get(alt_index));
+            }
+            HeaderType::SnpEffHighestImpact => {
+                write_snpeff_impact(record, column, alt_index, canonical_list)?;
+            }
             HeaderType::SnpEffImpact(_) => {
                 write_impact_gene(record, column, alt_index, header)?;
             }
@@ -692,7 +921,7 @@ pub fn vcf2table<R: BufRead, W: TableWriter>(
     group_name: Option<&U8Vec>,
     write_header: bool,
     mut writer: W,
-) -> Result<u32, VCFUtilsError> {
+) -> anyhow::Result<u32> {
     let header_string: Vec<_> = header_contents.iter().map(|x| x.to_string()).collect();
     writer.set_header(&header_string);
     if write_header {
@@ -860,12 +1089,14 @@ mod test {
     }
 
     #[test]
-    fn test_vcf2table_csv_split_multi() -> Result<(), VCFUtilsError> {
+    fn test_vcf2table_csv_split_multi() -> anyhow::Result<()> {
         let vcf_data = include_bytes!("../../testfiles/simple1.vcf");
         let config = VCF2CSVConfig {
             split_multi_allelic: true,
             decoded_genotype: false,
             canonical_list: None,
+            priority_info_list: Vec::new(),
+            priority_format_list: Vec::new(),
             info_list: vec![
                 b"AC".to_vec(),
                 b"AF".to_vec(),
@@ -898,12 +1129,18 @@ mod test {
     }
 
     #[test]
-    fn test_vcf2table_csv_split_multi_snpeff() -> Result<(), VCFUtilsError> {
+    fn test_vcf2table_csv_split_multi_snpeff() -> anyhow::Result<()> {
         let vcf_data = include_bytes!("../../testfiles/simple1-snpeff.vcf");
+        let canonical_genes = HashSet::from([
+            b"ENST00000380152.7_1".to_vec(),
+            b"ENST00000533490.7_2".to_vec(),
+        ]);
         let config = VCF2CSVConfig {
             split_multi_allelic: true,
             decoded_genotype: true,
-            canonical_list: None,
+            canonical_list: Some(canonical_genes),
+            priority_info_list: Vec::new(),
+            priority_format_list: Vec::new(),
             info_list: vec![
                 b"AC".to_vec(),
                 b"AF".to_vec(),
@@ -937,7 +1174,7 @@ mod test {
     }
 
     #[test]
-    fn test_vcf2table_csv_split_multi_snpeff_with_canonical() -> Result<(), VCFUtilsError> {
+    fn test_vcf2table_csv_split_multi_snpeff_with_canonical() -> anyhow::Result<()> {
         let vcf_data = include_bytes!("../../testfiles/1kGP-subset-snpeff.vcf");
         let config = VCF2CSVConfig {
             split_multi_allelic: true,
@@ -948,6 +1185,8 @@ mod test {
                     .map(|x| x.to_vec())
                     .collect(),
             ),
+            priority_info_list: Vec::new(),
+            priority_format_list: Vec::new(),
             info_list: vec![
                 b"AC".to_vec(),
                 b"AF".to_vec(),
@@ -980,12 +1219,14 @@ mod test {
     }
 
     #[test]
-    fn test_vcf2table_csv_no_split() -> Result<(), VCFUtilsError> {
+    fn test_vcf2table_csv_no_split() -> anyhow::Result<()> {
         let vcf_data = include_bytes!("../../testfiles/simple1.vcf");
         let config = VCF2CSVConfig {
             split_multi_allelic: false,
             decoded_genotype: false,
             canonical_list: None,
+            priority_info_list: Vec::new(),
+            priority_format_list: Vec::new(),
             info_list: vec![
                 b"AC".to_vec(),
                 b"AF".to_vec(),
@@ -1016,12 +1257,14 @@ mod test {
     }
 
     #[test]
-    fn test_vcf2table_xlsx_split_multi() -> Result<(), VCFUtilsError> {
+    fn test_vcf2table_xlsx_split_multi() -> anyhow::Result<()> {
         let vcf_data = include_bytes!("../../testfiles/simple1.vcf");
         let config = VCF2CSVConfig {
             split_multi_allelic: true,
             decoded_genotype: false,
             canonical_list: None,
+            priority_info_list: Vec::new(),
+            priority_format_list: Vec::new(),
             info_list: vec![
                 b"AC".to_vec(),
                 b"AN".to_vec(),
@@ -1053,12 +1296,14 @@ mod test {
     }
 
     #[test]
-    fn test_vcf2table_xlsx_no_split_multi() -> Result<(), VCFUtilsError> {
+    fn test_vcf2table_xlsx_no_split_multi() -> anyhow::Result<()> {
         let vcf_data = include_bytes!("../../testfiles/simple1.vcf");
         let config = VCF2CSVConfig {
             split_multi_allelic: false,
             decoded_genotype: false,
             canonical_list: None,
+            priority_info_list: Vec::new(),
+            priority_format_list: Vec::new(),
             info_list: vec![
                 b"AC".to_vec(),
                 b"AN".to_vec(),
@@ -1090,12 +1335,14 @@ mod test {
     }
 
     #[test]
-    fn test_vcf2table_xlsx_split_multi_with_group_name() -> Result<(), VCFUtilsError> {
+    fn test_vcf2table_xlsx_split_multi_with_group_name() -> anyhow::Result<()> {
         let vcf_data = include_bytes!("../../testfiles/simple1.vcf");
         let config = VCF2CSVConfig {
             split_multi_allelic: true,
             decoded_genotype: false,
             canonical_list: None,
+            priority_info_list: Vec::new(),
+            priority_format_list: Vec::new(),
             info_list: vec![
                 b"AC".to_vec(),
                 b"AN".to_vec(),

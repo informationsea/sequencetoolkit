@@ -7,7 +7,6 @@ pub trait TableWriter {
     fn set_header(&mut self, items: &[String]);
     fn header(&self) -> &[String];
     fn write_row(&mut self, items: &[&str]) -> Result<(), VCFUtilsError>;
-
     fn write_header(&mut self) -> Result<(), VCFUtilsError> {
         let header: Vec<_> = self.header().iter().map(|x| x.to_string()).collect();
         self.write_row(&header.iter().map(|x| x.as_str()).collect::<Vec<&str>>())
@@ -164,16 +163,21 @@ pub struct XlsxSheetWriter<'a, 'b> {
     header_comment: Vec<String>,
     data_type: Vec<XlsxDataType>,
     current_row: u32,
+    number_format: xlsxwriter::Format,
 }
 
 impl<'a, 'b> XlsxSheetWriter<'a, 'b> {
     pub fn new(workhseet: &'a mut xlsxwriter::Worksheet<'b>) -> Self {
+        let mut number_format = xlsxwriter::Format::new();
+        number_format.set_num_format("0.00");
+
         XlsxSheetWriter {
             writer: workhseet,
             header: Vec::new(),
             header_comment: Vec::new(),
             data_type: Vec::new(),
             current_row: 0,
+            number_format,
         }
     }
 
@@ -186,6 +190,14 @@ impl<'a, 'b> XlsxSheetWriter<'a, 'b> {
         self.header_comment.clear();
         self.header_comment.extend_from_slice(items);
     }
+
+    pub fn set_column_sizes(&mut self, widths: &[f64]) -> Result<(), VCFUtilsError> {
+        for (column_index, one_width) in widths.iter().enumerate() {
+            self.writer
+                .set_column(column_index as u16, column_index as u16, *one_width, None)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -193,6 +205,7 @@ pub enum XlsxDataType {
     String,
     Boolean,
     Number,
+    Formula,
 }
 
 impl<'a, 'b> TableWriter for XlsxSheetWriter<'a, 'b> {
@@ -259,6 +272,14 @@ impl<'a, 'b> TableWriter for XlsxSheetWriter<'a, 'b> {
                             i as u16,
                             *column == "TRUE" || *column == "True" || *column == "true",
                             None,
+                        )?;
+                    }
+                    XlsxDataType::Formula => {
+                        self.writer.write_formula(
+                            self.current_row,
+                            i as u16,
+                            &column,
+                            Some(&self.number_format),
                         )?;
                     }
                 }

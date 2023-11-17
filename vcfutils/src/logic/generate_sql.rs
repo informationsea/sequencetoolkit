@@ -27,6 +27,7 @@ pub fn generate_sql(
                         HeaderType::AltIndex => "",
                         HeaderType::GeneChange => "TEXT",
                         HeaderType::GeneName => "TEXT",
+                        HeaderType::CanonicalChange => "TEXT",
                         HeaderType::TranscriptName => "TEXT",
                         HeaderType::AminoChange => "TEXT",
                         HeaderType::CDSChange => "TEXT",
@@ -37,6 +38,7 @@ pub fn generate_sql(
                         HeaderType::ALT => "TEXT",
                         HeaderType::QUAL => "REAL",
                         HeaderType::FILTER => "TEXT",
+                        HeaderType::SnpEffHighestImpact => "TEXT",
                         HeaderType::Info(_, _, value_type, ..)
                         | HeaderType::Genotype(_, _, _, value_type, ..) => match value_type {
                             ValueType::Integer => "INTEGER",
@@ -46,6 +48,7 @@ pub fn generate_sql(
                         HeaderType::SnpEffImpact(_) => "TEXT",
                         HeaderType::SnpEff => "TEXT",
                         HeaderType::Empty => "TEXT",
+                        HeaderType::VAF(_, _) => "TEXT",
                     }
                 )
             }),
@@ -78,6 +81,8 @@ mod test {
             canonical_list: None,
             info_list: vec![b"AC".to_vec(), b"AN".to_vec(), b"AF".to_vec()],
             format_list: vec![b"GT".to_vec(), b"AD".to_vec(), b"DP".to_vec()],
+            priority_info_list: Vec::new(),
+            priority_format_list: Vec::new(),
             replace_sample_name: None,
             group_names: None,
         };

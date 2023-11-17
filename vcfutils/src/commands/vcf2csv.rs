@@ -4,11 +4,13 @@ use crate::logic::vcf2table::{
 };
 use crate::utils;
 use crate::utils::tablewriter::{CSVWriter, TSVWriter, TableWriter, XlsxSheetWriter};
+use anyhow::Context;
 use autocompress::io::RayonReader;
 use clap::{Args, ValueEnum};
 use std::boxed::Box;
 use std::collections::HashSet;
 use std::io::BufRead;
+use std::path::{Path, PathBuf};
 use vcf::VCFHeader;
 
 pub trait TableConfig {
@@ -20,6 +22,8 @@ pub trait TableConfig {
     fn info_list(&self) -> Option<&[String]>;
     fn format_list(&self) -> Option<&[String]>;
     fn replace_sample_name(&self) -> Option<&[String]>;
+    fn priority_info_list(&self) -> Option<&[String]>;
+    fn priority_format_list(&self) -> Option<&[String]>;
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -58,17 +62,41 @@ pub struct VCF2CSV {
     split_multi_allelic: bool,
     #[arg(short = 'd', long, help = "Decode GT format tag number into alleles")]
     decode_genotype: bool,
-    #[arg(short = 'i', long, help = "INFO tags to include")]
+    #[arg(
+        short = 'i',
+        long,
+        help = "INFO tags to include",
+        value_delimiter = ','
+    )]
     info: Option<Vec<String>>,
-    #[arg(short = 'f', long, help = "FORMAT tags to include")]
+    #[arg(
+        long,
+        help = "INFO tags to include top of columns",
+        value_delimiter = ','
+    )]
+    priority_info: Option<Vec<String>>,
+    #[arg(
+        short = 'f',
+        long,
+        help = "FORMAT tags to include",
+        value_delimiter = ','
+    )]
     format: Option<Vec<String>>,
+    #[arg(long, help = "FORMAT tags in top of columns", value_delimiter = ',')]
+    priority_format: Option<Vec<String>>,
     #[arg(
         short = 'g',
         long,
-        help = "List of group names for each input VCF file."
+        help = "List of group names for each input VCF file.",
+        value_delimiter = ','
     )]
     group_names: Option<Vec<String>>,
-    #[arg(short = 'r', long, help = "Replace sample name for each input vcf")]
+    #[arg(
+        short = 'r',
+        long,
+        help = "Replace sample name for each input vcf",
+        value_delimiter = ','
+    )]
     replace_sample_name: Option<Vec<String>>,
 }
 
@@ -97,6 +125,12 @@ impl TableConfig for VCF2CSV {
     fn format_list(&self) -> Option<&[String]> {
         self.format.as_deref()
     }
+    fn priority_info_list(&self) -> Option<&[String]> {
+        self.priority_info.as_deref()
+    }
+    fn priority_format_list(&self) -> Option<&[String]> {
+        self.priority_format.as_deref()
+    }
 }
 
 impl VCF2CSV {
@@ -124,7 +158,8 @@ impl VCF2CSV {
             return Ok(self.run_xlsx_mode(&self.input)?);
         }
 
-        let mut vcf_reader = utils::open_vcf_from_path(self.input.get(0).map(|x| x.as_str()))?;
+        let mut vcf_reader = utils::open_vcf_from_path(self.input.get(0).map(|x| x.as_str()))
+            .with_context(|| format!("Failed to open {:?}", self.input.get(0)))?;
         let mut writer: Box<dyn TableWriter> = match output_type {
             "csv" => Box::new(CSVWriter::new(
                 autocompress::autodetect_create_or_stdout_prefer_bgzip(
@@ -154,7 +189,8 @@ impl VCF2CSV {
 
         if self.input.len() > 1 {
             for (i, one_vcf_name) in self.input[1..].iter().enumerate() {
-                let mut vcf_reader = utils::open_vcf_from_path(Some(one_vcf_name))?;
+                let mut vcf_reader = utils::open_vcf_from_path(Some(one_vcf_name))
+                    .with_context(|| format!("Failed to open VCF: {}", one_vcf_name))?;
                 let config = create_config(&vcf_reader.header(), self)?;
                 let new_header_contents = create_header_line(&vcf_reader.header(), &config);
                 let merged_header_contents =
@@ -172,21 +208,24 @@ impl VCF2CSV {
         Ok(())
     }
 
-    fn run_xlsx_mode(&self, vcf_inputs: &[String]) -> Result<(), VCFUtilsError> {
+    fn run_xlsx_mode(&self, vcf_inputs: &[String]) -> anyhow::Result<()> {
         let workbook = xlsxwriter::Workbook::new(
             self.output
                 .as_deref()
                 .expect("Output path is required for xlsx output mode"),
         )?;
 
-        let mut first_vcf_reader =
-            utils::open_vcf_from_path(vcf_inputs.get(0).map(|x| x.as_str()))?;
+        let mut first_vcf_reader = utils::open_vcf_from_path(vcf_inputs.get(0).map(|x| x.as_str()))
+            .with_context(|| format!("Failed to open VCF: {:?}", vcf_inputs.get(0)))?;
 
         let mut sheet = workbook.add_worksheet(None)?;
         let mut writer = XlsxSheetWriter::new(&mut sheet);
         let config = create_config(&first_vcf_reader.header(), self)?;
         let header_contents = create_header_line(&first_vcf_reader.header(), &config);
         vcf2table_set_data_type(&header_contents, &mut writer)?;
+
+        let column_sizes: Vec<_> = header_contents.iter().map(|x| x.column_size()).collect();
+        writer.set_column_sizes(&column_sizes)?;
 
         let mut row = vcf2table(
             &mut first_vcf_reader,
@@ -199,7 +238,8 @@ impl VCF2CSV {
 
         if vcf_inputs.len() > 1 {
             for (i, one_vcf_name) in vcf_inputs[1..].iter().enumerate() {
-                let mut vcf_reader = utils::open_vcf_from_path(Some(one_vcf_name))?;
+                let mut vcf_reader = utils::open_vcf_from_path(Some(one_vcf_name))
+                    .with_context(|| format!("Failed to open VCF: {}", one_vcf_name))?;
                 let config = create_config(&vcf_reader.header(), self)?;
                 let new_header_contents = create_header_line(&vcf_reader.header(), &config);
                 let merged_header_contents =
@@ -226,11 +266,14 @@ impl VCF2CSV {
 pub fn create_config(
     header: &VCFHeader,
     matches: &impl TableConfig,
-) -> Result<VCF2CSVConfig, VCFUtilsError> {
+) -> anyhow::Result<VCF2CSVConfig> {
     let canonical_list = if let Some(canonical_file) = matches.canonical_list() {
         let mut canonical_list = HashSet::new();
 
-        let mut reader = RayonReader::new(autocompress::autodetect_open(canonical_file)?);
+        let mut reader = RayonReader::new(
+            autocompress::autodetect_open(canonical_file)
+                .with_context(|| format!("Failed to open canonical list: {}", canonical_file))?,
+        );
         let mut buffer = Vec::new();
 
         while reader.read_until(b'\n', &mut buffer)? > 0 {
@@ -254,7 +297,8 @@ pub fn create_config(
             log::error!("--replace-sample-name option is required for multi VCF inputs");
             return Err(VCFUtilsError::OtherError(
                 "--replace-sample-name option is required for multi VCF inputs",
-            ));
+            )
+            .into());
         }
     }
 
@@ -263,11 +307,32 @@ pub fn create_config(
         .map(|x| x.iter().map(|y| y.as_bytes().to_vec()).collect())
         .or_else(|| {
             if matches.input().len() > 1 {
+                let first_path = PathBuf::from(matches.input().get(0).unwrap());
+                let mut ancestors: Vec<_> = first_path.ancestors().collect();
+                ancestors.reverse();
+                //eprintln!("first ancestors: {:?}", ancestors);
+                for one in matches.input() {
+                    let mut one_ancestors: Vec<_> = Path::new(one).ancestors().collect();
+                    one_ancestors.reverse();
+                    let ancestor_count = one_ancestors
+                        .iter()
+                        .zip(ancestors.iter())
+                        .take_while(|(x, y)| ***x == ***y)
+                        .count();
+                    ancestors.drain(ancestor_count..);
+                }
+                //eprintln!("common ancestors: {:?}", ancestors);
+                let common_ancestors = ancestors.last().map(|x| x.to_path_buf()).unwrap();
+
                 Some(
                     matches
                         .input()
                         .iter()
-                        .map(|y| y.as_bytes().to_vec())
+                        .map(|y| {
+                            let path = Path::new(y);
+                            let uncommon_path = path.strip_prefix(&common_ancestors).unwrap();
+                            uncommon_path.to_string_lossy().as_bytes().to_vec()
+                        })
                         .collect(),
                 )
             } else {
@@ -275,44 +340,66 @@ pub fn create_config(
             }
         });
 
+    let priority_info_list: Vec<_> = matches
+        .priority_info_list()
+        .map(|x| x.iter().map(|y| y.as_bytes().to_vec()).collect())
+        .unwrap_or_default();
+    let priority_format_list: Vec<_> = matches
+        .priority_format_list()
+        .map(|x| x.iter().map(|y| y.as_bytes().to_vec()).collect())
+        .unwrap_or_default();
+    let info_list = matches
+        .info_list()
+        .map(|x| {
+            x.iter()
+                .map(|y| y.as_bytes().to_vec())
+                .collect::<Vec<vcf::U8Vec>>()
+        })
+        .unwrap_or_else(|| {
+            header
+                .items()
+                .iter()
+                .filter_map(|x| match x.contents() {
+                    vcf::VCFHeaderContent::INFO { id, .. } => Some(id.to_vec()),
+                    _ => None,
+                })
+                .collect()
+        })
+        .iter()
+        .filter(|x| !priority_info_list.contains(x))
+        .cloned()
+        .collect();
+
+    let format_list = matches
+        .format_list()
+        .map(|x| {
+            x.iter()
+                .map(|y| y.as_bytes().to_vec())
+                .collect::<Vec<vcf::U8Vec>>()
+        })
+        .unwrap_or_else(|| {
+            header
+                .items()
+                .iter()
+                .filter_map(|x| match x.contents() {
+                    vcf::VCFHeaderContent::FORMAT { id, .. } => Some(id.to_vec()),
+                    _ => None,
+                })
+                .collect()
+        })
+        .iter()
+        .filter(|x| !priority_format_list.contains(x))
+        .cloned()
+        .collect();
+
     Ok(VCF2CSVConfig {
         split_multi_allelic: matches.split_multi_allelic(),
         decoded_genotype: matches.decode_genotype(),
         canonical_list,
-        info_list: matches
-            .info_list()
-            .map(|x| {
-                x.iter()
-                    .map(|y| y.as_bytes().to_vec())
-                    .collect::<Vec<vcf::U8Vec>>()
-            })
-            .unwrap_or_else(|| {
-                header
-                    .items()
-                    .iter()
-                    .filter_map(|x| match x.contents() {
-                        vcf::VCFHeaderContent::INFO { id, .. } => Some(id.to_vec()),
-                        _ => None,
-                    })
-                    .collect()
-            }),
-        format_list: matches
-            .format_list()
-            .map(|x| {
-                x.iter()
-                    .map(|y| y.as_bytes().to_vec())
-                    .collect::<Vec<vcf::U8Vec>>()
-            })
-            .unwrap_or_else(|| {
-                header
-                    .items()
-                    .iter()
-                    .filter_map(|x| match x.contents() {
-                        vcf::VCFHeaderContent::FORMAT { id, .. } => Some(id.to_vec()),
-                        _ => None,
-                    })
-                    .collect()
-            }),
+        priority_info_list,
+        priority_format_list,
+        info_list,
+        format_list,
         replace_sample_name: matches
             .replace_sample_name()
             .map(|x| x.iter().map(|y| y.as_bytes().to_vec()).collect()),

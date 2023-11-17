@@ -46,6 +46,12 @@ impl TableConfig for GenerateSql {
     fn format_list(&self) -> Option<&[String]> {
         self.format.as_deref()
     }
+    fn priority_format_list(&self) -> Option<&[String]> {
+        None
+    }
+    fn priority_info_list(&self) -> Option<&[String]> {
+        None
+    }
 }
 
 impl GenerateSql {

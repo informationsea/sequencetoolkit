@@ -22,4 +22,6 @@ pub enum VCFUtilsError {
     XlsxError(#[from] xlsxwriter::XlsxError),
     #[error("Error: {0}")]
     OtherError(&'static str),
+    #[error("Invalid SnpEff Impact: {0}")]
+    InvalidSnpEffImpact(String),
 }
