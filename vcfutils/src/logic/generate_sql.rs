@@ -48,7 +48,7 @@ pub fn generate_sql(
                         HeaderType::SnpEffImpact(_) => "TEXT",
                         HeaderType::SnpEff => "TEXT",
                         HeaderType::Empty => "TEXT",
-                        HeaderType::VAF(_, _) => "TEXT",
+                        HeaderType::VAF(_, _, _) => "TEXT",
                     }
                 )
             }),
@@ -95,9 +95,9 @@ mod test {
     ID TEXT,
     REF TEXT,
     ALT TEXT,
-    QUAL REAL,
     ERP001775_HiSeq2000_SAMEA1531955_1__VAF TEXT,
     ERP001775_HiSeq2000_SAMEA1531955_2__VAF TEXT,
+    QUAL REAL,
     FILTER TEXT,
     AC INTEGER,
     AN INTEGER,

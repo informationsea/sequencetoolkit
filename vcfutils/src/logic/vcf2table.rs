@@ -92,8 +92,8 @@ pub enum HeaderType {
         String,
         Option<U8Vec>,
     ),
-    // Variant Allele Frequency (VAF): SampleName, ReplacedSampleName
-    VAF(U8Vec, Option<U8Vec>),
+    // Variant Allele Frequency (VAF): SampleName, ReplacedSampleName, sample index
+    VAF(U8Vec, Option<U8Vec>, usize),
     Empty,
 }
 
@@ -181,7 +181,7 @@ impl ToString for HeaderType {
                 add_number_suffix(&mut s, num, *index).unwrap();
                 s
             }
-            HeaderType::VAF(name, replace_sample_name) => {
+            HeaderType::VAF(name, replace_sample_name, _) => {
                 let name = replace_sample_name.as_ref().unwrap_or(name);
                 format!("{}__VAF", String::from_utf8_lossy(name))
             }
@@ -220,6 +220,11 @@ pub fn create_header_line(header: &VCFHeader, config: &VCF2CSVConfig) -> Vec<Hea
     }
 
     for (sample_index, one_sample) in header.samples().iter().enumerate() {
+        // eprintln!(
+        //     "VAF: {} {}",
+        //     sample_index,
+        //     String::from_utf8_lossy(one_sample)
+        // );
         header_items.push(HeaderType::VAF(
             one_sample.to_vec(),
             config
@@ -227,6 +232,7 @@ pub fn create_header_line(header: &VCFHeader, config: &VCF2CSVConfig) -> Vec<Hea
                 .as_ref()
                 .map(|x| x.get(sample_index).map(|y| y.to_vec()))
                 .flatten(),
+            sample_index,
         ));
     }
 
@@ -733,7 +739,7 @@ pub fn vcf2table_set_data_type(
                 vcf::ValueType::Float | vcf::ValueType::Integer => XlsxDataType::Number,
                 _ => XlsxDataType::String,
             },
-            HeaderType::VAF(_, _) => XlsxDataType::Formula,
+            HeaderType::VAF(_, _, _) => XlsxDataType::Formula,
             _ => XlsxDataType::String,
         })
         .collect();
@@ -749,7 +755,7 @@ pub fn vcf2table_set_data_type(
             HeaderType::SnpEff => {
                 "All transcript annotation by snpEff".to_string()
             }
-            HeaderType::VAF(sample_name, replaced_sample_name) => {
+            HeaderType::VAF(sample_name, replaced_sample_name, _) => {
                 let name = replaced_sample_name.as_ref().unwrap_or(sample_name);
                 format!("Variant Allele Frequency for {}", String::from_utf8_lossy(name))
             }
@@ -772,6 +778,7 @@ fn setup_row(
     alt_index: Option<usize>,
     translate_genotype: bool,
     canonical_list: Option<&HashSet<U8Vec>>,
+    is_formula_compatible: bool,
 ) -> anyhow::Result<()> {
     for (header, column) in header_contents.iter().zip(row.iter_mut()) {
         column.clear();
@@ -850,6 +857,7 @@ fn setup_row(
                 }
             }
             HeaderType::Genotype(sample_name, key, number, _, index, _, _) => {
+                //eprintln!("sample_name: {}", String::from_utf8_lossy(sample_name));
                 if let Some(values) = record.genotype(sample_name, key) {
                     if translate_genotype && (key == b"GT" || key == b"PGT") {
                         write_value_for_decoded_genotype(column, record, values)?;
@@ -858,7 +866,8 @@ fn setup_row(
                     }
                 }
             }
-            HeaderType::VAF(sample_name, _) => {
+            HeaderType::VAF(sample_name, _, _) => {
+                // eprintln!("sample_name: {}", String::from_utf8_lossy(sample_name));
                 let dp: Option<u32> = record
                     .genotype(sample_name, b"DP")
                     .map(|x| x.get(0))
@@ -879,10 +888,16 @@ fn setup_row(
                 if let (Some(dp), Some(ad)) = (dp, ad) {
                     if let Some(alt_index) = alt_index {
                         if let Some(ad) = ad.get(alt_index + 1) {
-                            write!(column, "={}/{}", *ad, dp)?;
+                            if is_formula_compatible {
+                                write!(column, "={}/{}", *ad, dp)?;
+                            } else {
+                                write!(column, "{:.3}", *ad as f64 / dp as f64)?;
+                            }
                         }
                     } else {
-                        write!(column, "=\"")?;
+                        if is_formula_compatible {
+                            write!(column, "=\"")?;
+                        }
                         let mut first = true;
                         for ad in ad.iter().skip(1) {
                             if first {
@@ -892,7 +907,9 @@ fn setup_row(
                             }
                             write!(column, "{:.3}", *ad as f64 / dp as f64)?;
                         }
-                        write!(column, "\"")?;
+                        if is_formula_compatible {
+                            write!(column, "\"")?;
+                        }
                     }
                 }
 
@@ -927,6 +944,18 @@ pub fn vcf2table<R: BufRead, W: TableWriter>(
     if write_header {
         writer.write_header()?;
     }
+    // eprintln!(
+    //     "header: {:?} {} {:?}",
+    //     header_contents
+    //         .iter()
+    //         .filter(|x| match x {
+    //             HeaderType::VAF(sample_name, _, _) => true,
+    //             _ => false,
+    //         })
+    //         .collect::<Vec<_>>(),
+    //     header_contents.len(),
+    //     header_contents
+    // );
     let mut row: Vec<U8Vec> = header_contents.iter().map(|_| Vec::new()).collect();
 
     let mut index: u32 = 0;
@@ -947,6 +976,7 @@ pub fn vcf2table<R: BufRead, W: TableWriter>(
                     Some(alt_index),
                     config.decoded_genotype,
                     config.canonical_list.as_ref(),
+                    writer.is_formula_compatible(),
                 )?;
                 writer.write_row_bytes(&row.iter().map(|x| -> &[u8] { &x }).collect::<Vec<_>>())?;
                 row_count += 1;
@@ -961,6 +991,7 @@ pub fn vcf2table<R: BufRead, W: TableWriter>(
                 None,
                 config.decoded_genotype,
                 config.canonical_list.as_ref(),
+                writer.is_formula_compatible(),
             )?;
             writer.write_row_bytes(&row.iter().map(|x| -> &[u8] { &x }).collect::<Vec<_>>())?;
             row_count += 1;
@@ -1005,6 +1036,18 @@ pub fn merge_header_contents(original: &[HeaderType], new: &[HeaderType]) -> Vec
                             }
                         }
                         one_sample_name == x_sample_name
+                    } else {
+                        false
+                    }
+                }
+                HeaderType::VAF(x_sample_name, x_replace_sample_name, _) => {
+                    if let HeaderType::VAF(one_sample_name, one_replace_sample_name, _) = one {
+                        if let Some(x_replace_sample_name) = x_replace_sample_name {
+                            if let Some(one_replace_sample_name) = one_replace_sample_name {
+                                return x_replace_sample_name == one_replace_sample_name;
+                            }
+                        }
+                        x_sample_name == one_sample_name
                     } else {
                         false
                     }
@@ -1211,10 +1254,12 @@ mod test {
             &mut tablewriter::CSVWriter::new(&mut write_bytes),
         )?;
         std::fs::File::create("../target/split-snpeff-canonical.csv")?.write_all(&write_bytes)?;
-        // assert_eq!(
-        //     &write_bytes[..],
-        //     &include_bytes!("../../testfiles/simple1-expected-multiallelic-split-snpeff.csv")[..]
-        // );
+        assert_eq!(
+            &write_bytes[..],
+            &include_bytes!(
+                "../../testfiles/simple1-expected-multiallelic-split-snpeff-canonical.csv"
+            )[..]
+        );
         Ok(())
     }
 
@@ -1248,6 +1293,10 @@ mod test {
             None,
             true,
             &mut tablewriter::CSVWriter::new(&mut write_bytes),
+        )?;
+        std::fs::write(
+            "../target/vcfutils-test_vcf2table_csv_no_split.csv",
+            &write_bytes[..],
         )?;
         assert_eq!(
             &write_bytes[..],

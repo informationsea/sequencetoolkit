@@ -6,6 +6,7 @@ use std::str;
 pub trait TableWriter {
     fn set_header(&mut self, items: &[String]);
     fn header(&self) -> &[String];
+    fn is_formula_compatible(&self) -> bool;
     fn write_row(&mut self, items: &[&str]) -> Result<(), VCFUtilsError>;
     fn write_header(&mut self) -> Result<(), VCFUtilsError> {
         let header: Vec<_> = self.header().iter().map(|x| x.to_string()).collect();
@@ -63,6 +64,9 @@ impl<T: TableWriter + ?Sized> TableWriter for Box<T> {
     fn write_dict_bytes(&mut self, items: &HashMap<&[u8], &[u8]>) -> Result<(), VCFUtilsError> {
         (**self).write_dict_bytes(items)
     }
+    fn is_formula_compatible(&self) -> bool {
+        (**self).is_formula_compatible()
+    }
 }
 
 impl<T: TableWriter + ?Sized> TableWriter for &mut T {
@@ -86,6 +90,9 @@ impl<T: TableWriter + ?Sized> TableWriter for &mut T {
     }
     fn write_dict_bytes(&mut self, items: &HashMap<&[u8], &[u8]>) -> Result<(), VCFUtilsError> {
         (**self).write_dict_bytes(items)
+    }
+    fn is_formula_compatible(&self) -> bool {
+        (**self).is_formula_compatible()
     }
 }
 
@@ -124,6 +131,10 @@ impl<W: Write> TableWriter for TSVWriter<W> {
         writeln!(self.writer)?;
         Ok(())
     }
+
+    fn is_formula_compatible(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Debug)]
@@ -154,6 +165,10 @@ impl<W: Write> TableWriter for CSVWriter<W> {
     fn write_row(&mut self, items: &[&str]) -> Result<(), VCFUtilsError> {
         self.writer.write_record(items)?;
         Ok(())
+    }
+
+    fn is_formula_compatible(&self) -> bool {
+        false
     }
 }
 
@@ -287,6 +302,10 @@ impl<'a, 'b> TableWriter for XlsxSheetWriter<'a, 'b> {
         }
         self.current_row += 1;
         Ok(())
+    }
+
+    fn is_formula_compatible(&self) -> bool {
+        true
     }
 }
 
