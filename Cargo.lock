@@ -1692,7 +1692,7 @@ checksum = "d4f410fedcf71af0345d7607d246e7ad15faaadd49d240ee3b24e5dc21a820ac"
 
 [[package]]
 name = "sequencetoolkit"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "bam2fastq",
