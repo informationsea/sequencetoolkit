@@ -1,6 +1,6 @@
 use crate::utils::{DigestReader, NameType, DNBSEQ_REGEX, ILLUMINA_REGEX};
 use anyhow::Context;
-use autocompress::io::RayonWriter;
+use autocompress::io::{RayonReader, RayonWriter};
 use std::collections::HashMap;
 use std::io::{prelude::*, BufReader};
 use std::str;
@@ -42,18 +42,16 @@ impl FastqCheck {
             .build_global()
             .context("Failed to set # of threads")?;
 
-        let mut output = RayonWriter::new(autocompress::autodetect_create_or_stdout_prefer_bgzip(
+        let mut output = RayonWriter::new(autocompress::autodetect_create_or_stdout(
             self.output.as_deref(),
             autocompress::CompressionLevel::Default,
         )?);
 
         let summary_output = if let Some(summary_output) = self.summary_output.as_deref() {
-            Some(RayonWriter::new(
-                autocompress::autodetect_create_prefer_bgzip(
-                    summary_output,
-                    autocompress::CompressionLevel::Default,
-                )?,
-            ))
+            Some(RayonWriter::new(autocompress::autodetect_create(
+                summary_output,
+                autocompress::CompressionLevel::Default,
+            )?))
         } else {
             None
         };
@@ -110,15 +108,19 @@ fn check_order(
     input_fastq2_path: impl AsRef<std::path::Path>,
     output: &mut impl Write,
 ) -> anyhow::Result<FastqVerifyResult> {
-    let mut input_fastq1_md5_reader = DigestReader::new(
+    if input_fastq1_path.as_ref() == input_fastq2_path.as_ref() {
+        return Err(anyhow::anyhow!("FASTQ1 and FASTQ2 are same file."));
+    }
+
+    let mut input_fastq1_md5_reader = RayonReader::new(DigestReader::new(
         autocompress::autodetect_open(input_fastq1_path)?,
         md5::Md5::default(),
-    );
+    ));
 
-    let mut input_fastq2_md5_reader = DigestReader::new(
+    let mut input_fastq2_md5_reader = RayonReader::new(DigestReader::new(
         autocompress::autodetect_open(input_fastq2_path)?,
         md5::Md5::default(),
-    );
+    ));
 
     let mut input_fastq1 = FastqReadnameReader::new(BufReader::new(&mut input_fastq1_md5_reader));
     let mut input_fastq2 = FastqReadnameReader::new(BufReader::new(&mut input_fastq2_md5_reader));
@@ -180,8 +182,14 @@ fn check_order(
         return Err(anyhow::anyhow!("FASTQ 2 reading is not completed."));
     }
 
-    let input_fastq1_md5 = format!("{:x}", input_fastq1_md5_reader.finalize_reset());
-    let input_fastq2_md5 = format!("{:x}", input_fastq2_md5_reader.finalize_reset());
+    let input_fastq1_md5 = format!(
+        "{:x}",
+        input_fastq1_md5_reader.into_inner().finalize_reset()
+    );
+    let input_fastq2_md5 = format!(
+        "{:x}",
+        input_fastq2_md5_reader.into_inner().finalize_reset()
+    );
 
     writeln!(output, "FASTQ1_MD5\t{}", input_fastq1_md5)?;
 
