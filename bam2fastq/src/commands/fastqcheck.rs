@@ -1,7 +1,9 @@
+use crate::utils::progress::{Progress, ProgressReader};
 use crate::utils::{DigestReader, NameType, DNBSEQ_REGEX, ILLUMINA_REGEX};
 use anyhow::Context;
 use autocompress::io::{RayonReader, RayonWriter};
 use std::collections::HashMap;
+use std::fs::File;
 use std::io::{prelude::*, BufReader};
 use std::str;
 
@@ -74,6 +76,7 @@ impl FastqCheck {
                         summary.fastq2_md5,
                     )?;
                 }
+                drop(output);
                 Ok(())
             }
             Err(e) => {
@@ -89,6 +92,7 @@ impl FastqCheck {
                 writeln!(output, "ERROR\t{}", e)?;
                 writeln!(output, "VERIFY_RESULT\tNG")?;
                 output.flush()?;
+                drop(output);
                 Err(e)
             }
         }
@@ -103,6 +107,8 @@ struct FastqVerifyResult {
     fastq_type: NameType,
 }
 
+const RAYON_READER_CAPACITY: usize = 1024 * 1024 * 100;
+
 fn check_order(
     input_fastq1_path: impl AsRef<std::path::Path>,
     input_fastq2_path: impl AsRef<std::path::Path>,
@@ -112,21 +118,37 @@ fn check_order(
         return Err(anyhow::anyhow!("FASTQ1 and FASTQ2 are same file."));
     }
 
-    let mut input_fastq1_md5_reader = RayonReader::new(DigestReader::new(
-        autocompress::autodetect_open(input_fastq1_path)?,
-        md5::Md5::default(),
-    ));
+    let input_fastq1_progress_reader =
+        ProgressReader::from_file(File::open(input_fastq1_path).context("Failed to open FASTQ1")?)?;
+    let input1_fastq_progress = input_fastq1_progress_reader.progress();
 
-    let mut input_fastq2_md5_reader = RayonReader::new(DigestReader::new(
-        autocompress::autodetect_open(input_fastq2_path)?,
-        md5::Md5::default(),
-    ));
+    let input_fastq2_progress_reader =
+        ProgressReader::from_file(File::open(input_fastq2_path).context("Failed to open FASTQ2")?)?;
+    let _input2_fastq_progress = input_fastq2_progress_reader.progress();
+
+    let mut input_fastq1_md5_reader = RayonReader::with_capacity(
+        DigestReader::new(
+            autocompress::autodetect_reader(input_fastq1_progress_reader)?,
+            md5::Md5::default(),
+        ),
+        RAYON_READER_CAPACITY,
+    );
+
+    let mut input_fastq2_md5_reader = RayonReader::with_capacity(
+        DigestReader::new(
+            autocompress::autodetect_reader(input_fastq2_progress_reader)?,
+            md5::Md5::default(),
+        ),
+        RAYON_READER_CAPACITY,
+    );
 
     let mut input_fastq1 = FastqReadnameReader::new(BufReader::new(&mut input_fastq1_md5_reader));
     let mut input_fastq2 = FastqReadnameReader::new(BufReader::new(&mut input_fastq2_md5_reader));
 
     let mut initial_fastq1_readnames = Vec::new();
     let mut initial_fastq2_readnames = Vec::new();
+
+    log::info!("start loading data");
 
     for _ in 0..INITIAL_LOAD_ENTRIES {
         let mut fastq1_line = String::new();
@@ -151,6 +173,7 @@ fn check_order(
         NameType::suggest(&initial_fastq1_readnames[0], &initial_fastq2_readnames[0])?
     };
 
+    log::info!("FASTQ type: {:?}", name_type);
     writeln!(output, "FASTQ_TYPE\t{}", name_type)?;
 
     let read_prefix = match name_type {
@@ -160,6 +183,7 @@ fn check_order(
             output,
             &initial_fastq1_readnames,
             &initial_fastq2_readnames,
+            input1_fastq_progress,
         )?,
         NameType::DNBSeq => check_dnbseq_order(
             input_fastq1,
@@ -170,6 +194,8 @@ fn check_order(
         )?,
         NameType::Empty => "".to_string(),
     };
+
+    log::info!("Finish FASTQ order check");
 
     let mut buffer = Vec::new();
     input_fastq1_md5_reader.read_to_end(&mut buffer)?;
@@ -182,6 +208,8 @@ fn check_order(
         return Err(anyhow::anyhow!("FASTQ 2 reading is not completed."));
     }
 
+    log::info!("Reading FASTQ completed");
+
     let input_fastq1_md5 = format!(
         "{:x}",
         input_fastq1_md5_reader.into_inner().finalize_reset()
@@ -192,10 +220,13 @@ fn check_order(
     );
 
     writeln!(output, "FASTQ1_MD5\t{}", input_fastq1_md5)?;
-
     writeln!(output, "FASTQ2_MD5\t{}", input_fastq2_md5)?;
-
     writeln!(output, "VERIFY_RESULT\tOK")?;
+
+    log::info!("FASTQ MD5 {} {}", input_fastq1_md5, input_fastq2_md5);
+    log::info!("Verify result OK");
+
+    output.flush()?;
 
     Ok(FastqVerifyResult {
         fastq1_md5: input_fastq1_md5,
@@ -265,9 +296,11 @@ fn check_illumina_order(
     mut output: &mut impl Write,
     initial_fastq1_readnames: &[String],
     initial_fastq2_readnames: &[String],
+    fastq1_progress: Progress,
 ) -> anyhow::Result<String> {
     let cap1 = parse_illumina_readname(&initial_fastq1_readnames[0])?;
     let prefix = cap1.prefix.to_string();
+    let mut processed_reads = initial_fastq1_readnames.len();
 
     // check most common index
     let mut index_occurrence = HashMap::new();
@@ -287,7 +320,7 @@ fn check_illumina_order(
     //eprintln!("fastq1 {}", initial_fastq1_readnames[0]);
     //eprintln!("fastq2 {}", initial_fastq2_readnames[0]);
     //eprintln!("common index: {}", common_index);
-    eprintln!("occurrence: {:?}", index_occurrence_vec);
+    log::debug!("occurrence: {:?}", index_occurrence_vec);
 
     writeln!(output, "READ_PREFIX\t{}", prefix)?;
     writeln!(output, "COMMON_INDEX\t{}", common_index)?;
@@ -313,6 +346,14 @@ fn check_illumina_order(
     }
 
     loop {
+        if processed_reads % 10_000_000 == 0 {
+            log::info!(
+                "Processed {} reads ({:.2}%)",
+                processed_reads,
+                fastq1_progress.progress() * 100.0
+            );
+        }
+        processed_reads += 1;
         let len1 = input_fastq1.next(&mut fastq1_readname)?;
         let len2 = input_fastq2.next(&mut fastq2_readname)?;
 
