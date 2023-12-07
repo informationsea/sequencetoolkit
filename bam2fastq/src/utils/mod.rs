@@ -1,5 +1,6 @@
 pub mod fastq;
 pub mod largereorder;
+pub mod ora;
 pub mod progress;
 
 use once_cell::sync::Lazy;

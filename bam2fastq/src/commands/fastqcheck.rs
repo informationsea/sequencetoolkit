@@ -1,9 +1,7 @@
-use crate::utils::progress::{Progress, ProgressReader};
 use crate::utils::{DigestReader, NameType, DNBSEQ_REGEX, ILLUMINA_REGEX};
 use anyhow::Context;
 use autocompress::io::{RayonReader, RayonWriter};
 use std::collections::HashMap;
-use std::fs::File;
 use std::io::{prelude::*, BufReader};
 use std::str;
 
@@ -33,6 +31,13 @@ pub struct FastqCheck {
         default_value = "1"
     )]
     thread: usize,
+    #[arg(
+        short = 'b',
+        long,
+        help = "Path to orad binary",
+        default_value = "orad"
+    )]
+    orad_binary: String,
 }
 
 const INITIAL_LOAD_ENTRIES: u64 = 5000;
@@ -61,7 +66,7 @@ impl FastqCheck {
         writeln!(output, "FASTQ1\t{}", self.fastq1)?;
         writeln!(output, "FASTQ2\t{}", self.fastq2)?;
 
-        match check_order(&self.fastq1, &self.fastq2, &mut output) {
+        match check_order(&self.orad_binary, &self.fastq1, &self.fastq2, &mut output) {
             Ok(summary) => {
                 if let Some(mut summary_output) = summary_output {
                     writeln!(
@@ -110,6 +115,7 @@ struct FastqVerifyResult {
 const RAYON_READER_CAPACITY: usize = 1024 * 1024 * 100;
 
 fn check_order(
+    orad_binary: impl AsRef<std::path::Path>,
     input_fastq1_path: impl AsRef<std::path::Path>,
     input_fastq2_path: impl AsRef<std::path::Path>,
     output: &mut impl Write,
@@ -118,17 +124,9 @@ fn check_order(
         return Err(anyhow::anyhow!("FASTQ1 and FASTQ2 are same file."));
     }
 
-    let input_fastq1_progress_reader =
-        ProgressReader::from_file(File::open(input_fastq1_path).context("Failed to open FASTQ1")?)?;
-    let input1_fastq_progress = input_fastq1_progress_reader.progress();
-
-    let input_fastq2_progress_reader =
-        ProgressReader::from_file(File::open(input_fastq2_path).context("Failed to open FASTQ2")?)?;
-    let _input2_fastq_progress = input_fastq2_progress_reader.progress();
-
     let mut input_fastq1_md5_reader = RayonReader::with_capacity(
         DigestReader::new(
-            autocompress::autodetect_reader(input_fastq1_progress_reader)?,
+            crate::utils::ora::open(orad_binary.as_ref(), input_fastq1_path)?,
             md5::Md5::default(),
         ),
         RAYON_READER_CAPACITY,
@@ -136,7 +134,7 @@ fn check_order(
 
     let mut input_fastq2_md5_reader = RayonReader::with_capacity(
         DigestReader::new(
-            autocompress::autodetect_reader(input_fastq2_progress_reader)?,
+            crate::utils::ora::open(orad_binary, input_fastq2_path)?,
             md5::Md5::default(),
         ),
         RAYON_READER_CAPACITY,
@@ -183,7 +181,6 @@ fn check_order(
             output,
             &initial_fastq1_readnames,
             &initial_fastq2_readnames,
-            input1_fastq_progress,
         )?,
         NameType::DNBSeq => check_dnbseq_order(
             input_fastq1,
@@ -296,7 +293,6 @@ fn check_illumina_order(
     mut output: &mut impl Write,
     initial_fastq1_readnames: &[String],
     initial_fastq2_readnames: &[String],
-    fastq1_progress: Progress,
 ) -> anyhow::Result<String> {
     let cap1 = parse_illumina_readname(&initial_fastq1_readnames[0])?;
     let prefix = cap1.prefix.to_string();
@@ -347,11 +343,7 @@ fn check_illumina_order(
 
     loop {
         if processed_reads % 10_000_000 == 0 {
-            log::info!(
-                "Processed {} reads ({:.2}%)",
-                processed_reads,
-                fastq1_progress.progress() * 100.0
-            );
+            log::info!("Processed {} reads ", processed_reads,);
         }
         processed_reads += 1;
         let len1 = input_fastq1.next(&mut fastq1_readname)?;
