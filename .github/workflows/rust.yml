@@ -87,6 +87,7 @@ jobs:
       - name: Build
         run: ${{ matrix.config.cross && 'cross' || 'cargo' }} build --release --target ${{ matrix.config.target }}
       - name: Test
+        if: ${{ matrix.config.test }}
         run: ${{ matrix.config.cross && 'cross' || 'cargo' }} test --release --target ${{ matrix.config.target }}
       - name: Create release zip for UNIX
         if: ${{ matrix.config.os != 'windows-latest' }}
