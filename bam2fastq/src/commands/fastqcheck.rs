@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::io::{prelude::*, BufReader};
 use std::str;
 
+type TilePosition = u32;
+
 #[derive(Debug, Clone, clap::Args)]
 #[command(
     about = "Check order of FASTQ and create result summary",
@@ -421,8 +423,8 @@ impl<R: BufRead> FastqReadnameReader<R> {
 struct IlluminaReadName<'a> {
     prefix: &'a str,
     tile: u16,
-    y_pos: u16,
-    x_pos: u16,
+    y_pos: TilePosition,
+    x_pos: TilePosition,
     read: u8,
     read_index: &'a str,
 }
@@ -445,11 +447,11 @@ fn parse_illumina_readname(readname: &str) -> anyhow::Result<IlluminaReadName> {
 fn check_illumina_readname(
     expected_prefix: &str,
     common_index: &str,
-    last_tile_pos: (u16, u16, u16),
+    last_tile_pos: (u16, TilePosition, TilePosition),
     output: &mut impl Write,
     read1: &str,
     read2: &str,
-) -> anyhow::Result<(u16, u16, u16)> {
+) -> anyhow::Result<(u16, TilePosition, TilePosition)> {
     let cap1 = parse_illumina_readname(read1)?;
     let cap2 = parse_illumina_readname(read2)?;
 
