@@ -15,6 +15,8 @@ pub enum Commands {
     FastqUtils(fastqutils::FastqUtils),
     #[command(name = "bam2fastq")]
     Bam2fastq(bam2fastq::Bam2fastq),
+    #[command(name = "fsutils")]
+    FsUtils(fsutils::FileSystemUtilities),
 }
 
 impl Commands {
@@ -26,6 +28,7 @@ impl Commands {
             Commands::VcfUtils(x) => x.run(),
             Commands::Bam2fastq(x) => x.run(),
             Commands::FastqUtils(x) => x.run(),
+            Commands::FsUtils(x) => x.run(),
         }
     }
 }

@@ -7,5 +7,6 @@ members = [
     "sequencetoolkit",
     "vcfutils",
     "bam2fastq",
+    "fsutils",
 ]
 resolver = "2"

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::io::{prelude::*, BufReader};
 use std::str;
 
-type TilePosition = u32;
+use crate::utils::fastq::TilePosition;
 
 #[derive(Debug, Clone, clap::Args)]
 #[command(

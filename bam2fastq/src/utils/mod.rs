@@ -3,6 +3,7 @@ pub mod largereorder;
 pub mod ora;
 pub mod progress;
 
+use fastq::TilePosition;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use rust_htslib::bam::record::Aux;
@@ -146,7 +147,7 @@ pub struct IlluminaFASTQInfo {
     pub fastq_type: String,
     pub prefix: String,
     pub common_index: String,
-    pub special_index: HashMap<(u16, u16, u16), String>,
+    pub special_index: HashMap<(u16, TilePosition, TilePosition), String>,
     pub fastq1_md5: String,
     pub fastq2_md5: String,
 }

@@ -4,6 +4,8 @@ use std::convert::TryFrom;
 use std::io::{self, prelude::*};
 use std::str;
 
+pub type TilePosition = u32;
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 pub struct GenericFastqEntry {
     read_name: Vec<u8>,
@@ -83,8 +85,8 @@ impl GenericFastqEntry {
 pub struct IlluminaFastqEntry {
     prefix: String,
     tile: u16,
-    y_pos: u16,
-    x_pos: u16,
+    y_pos: TilePosition,
+    x_pos: TilePosition,
     sequence: Vec<u8>,
     quality: Vec<u8>,
 }
@@ -96,8 +98,8 @@ impl TryFrom<GenericFastqEntry> for IlluminaFastqEntry {
         if let Some(cap) = ILLUMINA_REGEX_IN_BAM.captures(read_name_str) {
             let prefix = cap.name("prefix").unwrap().as_str().to_string();
             let tile: u16 = cap.name("tile").unwrap().as_str().parse().unwrap();
-            let x_pos: u16 = cap.name("x_pos").unwrap().as_str().parse().unwrap();
-            let y_pos: u16 = cap.name("y_pos").unwrap().as_str().parse().unwrap();
+            let x_pos: TilePosition = cap.name("x_pos").unwrap().as_str().parse().unwrap();
+            let y_pos: TilePosition = cap.name("y_pos").unwrap().as_str().parse().unwrap();
             Ok(IlluminaFastqEntry {
                 prefix,
                 tile,

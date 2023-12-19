@@ -14,6 +14,7 @@ geneannot = { path = "../geneannot" }
 vcfutils = { path = "../vcfutils" }
 bamutils = { path = "../bamutils" }
 bam2fastq = { path = "../bam2fastq" }
+fsutils = { path = "../fsutils" }
 pretty_env_logger = "0.4"
 log = "0.4"
 anyhow = "1"
