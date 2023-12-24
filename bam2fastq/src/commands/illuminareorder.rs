@@ -2,9 +2,10 @@ use crate::utils::fastq::*;
 use crate::utils::largereorder::LargeReorder;
 use crate::utils::{DigestWriter, IlluminaFASTQInfo};
 use anyhow::Context;
-use autocompress::io::{RayonReader, RayonWriter};
+use autocompress::io::RayonReader;
 use std::convert::TryFrom;
 use std::str;
+use std::sync::mpsc::channel;
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub enum Read {
@@ -63,17 +64,6 @@ impl IlluminaFastqReorder {
             autocompress::autodetect_open(&self.input).context("Cannot open input FASTQ")?,
         );
 
-        let mut output = DigestWriter::new(
-            RayonWriter::new(
-                autocompress::autodetect_create(
-                    &self.output,
-                    autocompress::CompressionLevel::Default,
-                )
-                .context("Cannot open output FASTQ")?,
-            ),
-            md5::Md5::default(),
-        );
-
         let fastq_info = if let Some(fastq_info_path) = self.fastq_info.as_deref() {
             Some(IlluminaFASTQInfo::load(RayonReader::new(
                 autocompress::autodetect_open(fastq_info_path).context("Cannot read FASTQ Info")?,
@@ -87,46 +77,60 @@ impl IlluminaFastqReorder {
             self.temporary_directory.as_deref(),
             Some("illuminafastq."),
         );
+        let (sender, receiver) = channel();
+        let output = self.output.clone();
+        let read = self.read;
 
-        eprintln!("Loading FASTQ...");
-        while let Some(entry) = GenericFastqEntry::read(&mut input_fastq)? {
-            fastq_entries.add(IlluminaFastqEntry::try_from(entry)?)?;
-        }
+        rayon::spawn(move || {
+            let f = move || -> anyhow::Result<()> {
+                let mut output = DigestWriter::new(
+                    autocompress::autodetect_parallel_create(
+                        &output,
+                        autocompress::CompressionLevel::Default,
+                    )
+                    .context("Cannot open output FASTQ")?,
+                    md5::Md5::default(),
+                );
 
-        eprintln!("Writing FASTQ...");
-        for one in fastq_entries.into_iter()? {
-            let one = one?;
-            one.write(
-                &mut output,
-                self.read.map(|x| x.to_str()),
-                fastq_info.as_ref(),
-            )?;
-        }
+                eprintln!("Loading FASTQ...");
+                while let Some(entry) = GenericFastqEntry::read(&mut input_fastq)? {
+                    fastq_entries.add(IlluminaFastqEntry::try_from(entry)?)?;
+                }
 
-        let md5result = format!("{:x}", output.finalize_reset());
-        eprintln!("MD5: {}", md5result);
+                eprintln!("Writing FASTQ...");
+                for one in fastq_entries.into_iter()? {
+                    let one = one?;
+                    one.write(&mut output, read.map(|x| x.to_str()), fastq_info.as_ref())?;
+                }
 
-        if let Some(fastq_info) = fastq_info {
-            if let Some(read) = self.read {
-                match read {
-                    Read::One => {
-                        if fastq_info.fastq1_md5 == md5result {
-                            eprintln!("MD5 OK");
-                        } else {
-                            eprintln!("MD5 NG. Expected MD5 is {}", fastq_info.fastq1_md5);
-                        }
-                    }
-                    Read::Two => {
-                        if fastq_info.fastq2_md5 == md5result {
-                            eprintln!("MD5 OK");
-                        } else {
-                            eprintln!("MD5 NG. Expected MD5 is {}", fastq_info.fastq2_md5);
+                let md5result = format!("{:x}", output.finalize_reset());
+                eprintln!("MD5: {}", md5result);
+
+                if let Some(fastq_info) = fastq_info {
+                    if let Some(read) = read {
+                        match read {
+                            Read::One => {
+                                if fastq_info.fastq1_md5 == md5result {
+                                    eprintln!("MD5 OK");
+                                } else {
+                                    eprintln!("MD5 NG. Expected MD5 is {}", fastq_info.fastq1_md5);
+                                }
+                            }
+                            Read::Two => {
+                                if fastq_info.fastq2_md5 == md5result {
+                                    eprintln!("MD5 OK");
+                                } else {
+                                    eprintln!("MD5 NG. Expected MD5 is {}", fastq_info.fastq2_md5);
+                                }
+                            }
                         }
                     }
                 }
-            }
-        }
+                Ok(())
+            };
+            sender.send(f()).expect("Failed to send final result");
+        });
 
-        Ok(())
+        receiver.recv().expect("Failed to receive final result")
     }
 }
