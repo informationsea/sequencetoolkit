@@ -10,7 +10,7 @@ clap = { version = "4", features = ["derive", "cargo"] }
 rust-htslib = "0.44"
 bio = "1.4.0"
 csv = "^1.1.6"
-autocompress = "0.5"
+autocompress = "0.6"
 rand = "0.8.5"
 anyhow = "1"
 regex = "1"
