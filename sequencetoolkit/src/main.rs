@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand};
 use std::env;
 
+include!(concat!(env!("OUT_DIR"), "/git_version.rs"));
+
 #[derive(Debug, Subcommand)]
 pub enum Commands {
     #[command(name = "bamutils")]
@@ -34,7 +36,7 @@ impl Commands {
 }
 
 #[derive(Debug, Parser)]
-#[command(version, about = "sequence toolkit")]
+#[command(version = concat!(env!("CARGO_PKG_VERSION"), " git:", git_version!()), about = "sequence toolkit")]
 pub struct Cli {
     #[arg(short = 'v', long = "verbose", action= clap::ArgAction::Count, help="verbose level")]
     verbose: u8,
