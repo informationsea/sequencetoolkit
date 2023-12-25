@@ -11,5 +11,5 @@ clap = { version = "4", features = ["derive", "cargo"] }
 bio = "1.4.0"
 bio-types = "1"
 failure = "0.1"
-autocompress = "0.5"
+autocompress = "0.6"
 anyhow = "1"

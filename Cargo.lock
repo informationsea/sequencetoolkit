@@ -129,9 +129,9 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "autocompress"
-version = "0.5.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0fe48711598e2ca1597a6a170d8e7598e5353baf9a0727ddb79462d71c34b16"
+checksum = "718907d13584a4f7417eb14fe8edd992250e75719dc9c8823d08b858dcc657e6"
 dependencies = [
  "bgzip",
  "bzip2",
