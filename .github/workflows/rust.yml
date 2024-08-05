@@ -7,7 +7,7 @@ on:
   pull_request:
     branches: [master]
 env:
-  ARTIFACT_NAME: workflow-test
+  ARTIFACT_NAME: sequencetoolkit
 permissions:
   contents: write
   pull-requests: read
