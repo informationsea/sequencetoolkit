@@ -108,7 +108,7 @@ fn copy_and_hash<R: Read, W: Write>(
     }
     Ok(digest
         .finalize_reset()
-        .into_iter()
+        .iter()
         .map(|x| format!("{:02x}", x))
         .collect())
 }
