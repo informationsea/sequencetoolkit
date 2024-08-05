@@ -31,18 +31,26 @@ impl RandomSampling {
         let mut rng = rand::thread_rng();
 
         let mut reader1 = RayonReader::new(
-            File::open(&self.input1).with_context(|| format!("Failed to open {}", self.input1))?,
+            autocompress::autodetect_open(&self.input1)
+                .with_context(|| format!("Failed to open {}", self.input1))?,
         );
         let mut reader2 = RayonReader::new(
-            File::open(&self.input2).with_context(|| format!("Failed to open {}", self.input2))?,
+            autocompress::autodetect_open(&self.input2)
+                .with_context(|| format!("Failed to open {}", self.input2))?,
         );
         let mut writer1 = RayonWriter::new(
-            File::create(&self.output1)
-                .with_context(|| format!("Failed to create {}", self.output1))?,
+            autocompress::autodetect_create(
+                &self.output1,
+                autocompress::CompressionLevel::default(),
+            )
+            .with_context(|| format!("Failed to create {}", self.output1))?,
         );
         let mut writer2 = RayonWriter::new(
-            File::create(&self.output2)
-                .with_context(|| format!("Failed to create {}", self.output2))?,
+            autocompress::autodetect_create(
+                &self.output2,
+                autocompress::CompressionLevel::default(),
+            )
+            .with_context(|| format!("Failed to create {}", self.output2))?,
         );
 
         let mut line = String::new();
