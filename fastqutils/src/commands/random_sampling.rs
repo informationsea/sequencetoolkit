@@ -2,7 +2,6 @@ use anyhow::Context;
 use autocompress::io::{RayonReader, RayonWriter};
 use clap::Parser;
 use rand::Rng;
-use std::fs::File;
 use std::io::prelude::*;
 
 #[derive(Parser, Debug, Clone, PartialEq)]
