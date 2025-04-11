@@ -1,6 +1,6 @@
 [package]
 name = "sequencetoolkit"
-version = "0.4.3"
+version = "0.4.4"
 authors = ["OKAMURA, Yasunobu <okamura@informationsea.info>"]
 edition = "2021"
 build = "build.rs"
