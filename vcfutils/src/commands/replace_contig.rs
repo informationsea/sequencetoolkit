@@ -82,6 +82,8 @@ fn add_chr() -> HashMap<U8Vec, U8Vec> {
         (b"22".to_vec(), b"chr22".to_vec()),
         (b"X".to_vec(), b"chrX".to_vec()),
         (b"Y".to_vec(), b"chrY".to_vec()),
+        (b"M".to_vec(), b"chrM".to_vec()),
+        (b"MT".to_vec(), b"chrMT".to_vec()),
     ]
     .iter()
     .cloned()
@@ -114,6 +116,8 @@ fn remove_chr() -> HashMap<U8Vec, U8Vec> {
         (b"chr22".to_vec(), b"22".to_vec()),
         (b"chrX".to_vec(), b"X".to_vec()),
         (b"chrY".to_vec(), b"Y".to_vec()),
+        (b"chrM".to_vec(), b"M".to_vec()),
+        (b"chrMT".to_vec(), b"MT".to_vec()),
     ]
     .iter()
     .cloned()
@@ -170,6 +174,7 @@ fn refseq_replace() -> HashMap<U8Vec, U8Vec> {
         (b"NC_000022.11".to_vec(), b"22".to_vec()),
         (b"NC_000023.11".to_vec(), b"X".to_vec()),
         (b"NC_000024.10".to_vec(), b"Y".to_vec()),
+        (b"NC_012920.1".to_vec(), b"MT".to_vec()),
     ]
     .iter()
     .cloned()
