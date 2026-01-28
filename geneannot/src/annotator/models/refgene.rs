@@ -74,7 +74,7 @@ struct TranscriptLine<'a> {
     exon_frames: Vec<i8>,
 }
 
-fn parse_transcript_line(record: &csv::StringRecord) -> Result<TranscriptLine, GeneAnnotError> {
+fn parse_transcript_line(record: &csv::StringRecord) -> Result<TranscriptLine<'_>, GeneAnnotError> {
     Ok(TranscriptLine {
         transcript_id: record.get(1).unwrap(),
         chromosome: record.get(2).unwrap(),

@@ -429,7 +429,7 @@ struct IlluminaReadName<'a> {
     read_index: &'a str,
 }
 
-fn parse_illumina_readname(readname: &str) -> anyhow::Result<IlluminaReadName> {
+fn parse_illumina_readname(readname: &str) -> anyhow::Result<IlluminaReadName<'_>> {
     if let Some(cap) = ILLUMINA_REGEX.captures(readname) {
         Ok(IlluminaReadName {
             prefix: cap.name("prefix").unwrap().as_str(),
@@ -515,7 +515,7 @@ struct DNBSeqReadName<'a> {
     read: u8,
 }
 
-fn parse_dnbseq_readname(readname: &str) -> anyhow::Result<DNBSeqReadName> {
+fn parse_dnbseq_readname(readname: &str) -> anyhow::Result<DNBSeqReadName<'_>> {
     if let Some(cap) = DNBSEQ_REGEX.captures(readname) {
         Ok(DNBSeqReadName {
             prefix: cap.name("prefix").unwrap().as_str(),
