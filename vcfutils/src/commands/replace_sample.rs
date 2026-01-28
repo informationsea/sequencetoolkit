@@ -4,7 +4,6 @@ use crate::utils::{self, Mapping};
 use autocompress::io::RayonWriter;
 use clap::Args;
 use rand::prelude::*;
-use rand::SeedableRng;
 use std::collections::HashMap;
 use std::io::BufRead;
 use vcf::{U8Vec, VCFReader};
@@ -61,7 +60,7 @@ fn create_sample_mapping<R: BufRead>(
         //dbg!(original_names.len());
 
         if random {
-            let mut rnd = StdRng::from_entropy();
+            let mut rnd = rand::rng();
             original_names.shuffle(&mut rnd);
         }
 
@@ -88,7 +87,7 @@ fn create_sample_mapping<R: BufRead>(
             false,
         )?)?;
         if random {
-            let mut rnd = StdRng::from_entropy();
+            let mut rnd = rand::rng();
             value_order.shuffle(&mut rnd);
         }
         (mapping, value_order)

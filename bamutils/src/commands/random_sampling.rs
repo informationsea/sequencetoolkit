@@ -46,7 +46,7 @@ fn run(
         return Err(anyhow::anyhow!("sampling rate must be smaller than 1").into());
     }
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut reader = bam::Reader::from_path(bam_path)?;
     if let Some(reference) = reference {
         reader.set_reference(reference)?;
@@ -81,7 +81,7 @@ fn run(
                 writer.write(&record)?;
             }
         } else {
-            let r: f64 = rng.gen();
+            let r: f64 = rng.random();
             if r < sampling_rate {
                 writer.write(&record)?;
                 decision_result.insert(record.qname().to_vec(), true);

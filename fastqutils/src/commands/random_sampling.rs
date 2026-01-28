@@ -27,7 +27,7 @@ impl RandomSampling {
             .num_threads(self.threads)
             .build_global()
             .context("Failed to build thread pool")?;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut reader1 = RayonReader::new(
             autocompress::autodetect_open(&self.input1)
@@ -61,7 +61,7 @@ impl RandomSampling {
                 }
                 break;
             }
-            let rnd_value: f64 = rng.gen();
+            let rnd_value: f64 = rng.random();
             if rnd_value < self.ratio {
                 writer1.write_all(line.as_bytes())?;
                 for _ in 0..3 {

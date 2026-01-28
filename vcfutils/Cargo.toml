@@ -8,7 +8,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4", features = ["derive", "cargo"] }
-bio = "1.4.0"
+bio = "3.0.0"
 bio-types = "1"
 #failure = "0.1"
 autocompress = "0.6"
@@ -19,8 +19,8 @@ xlsxwriter = { version = "0.6", features = ["no-md5", "system-zlib"] }
 nom = "5"
 itertools = "0.9"
 serde = "1"
-rand = "0.7"
+rand = "0.9"
 itoa = "^0.4.6"
 log = "0.4"
 anyhow = "1"
-thiserror = "1"
+thiserror = "2"

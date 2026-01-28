@@ -8,10 +8,10 @@ edition = "2021"
 [dependencies]
 clap = { version = "4", features = ["derive", "cargo"] }
 rust-htslib = "0.44"
-bio = "1.4.0"
+bio = "3.0.0"
 csv = "^1.1.6"
 autocompress = "0.6"
-rand = "0.8.5"
+rand = "0.9"
 anyhow = "1"
 regex = "1"
 once_cell = "1.13.0"
