@@ -13,9 +13,9 @@ pub struct GenerateSql {
     input: Option<String>,
     #[arg(short, long, help = "Output SQL")]
     output: Option<String>,
-    #[arg(short, long, help = "INFO tags to include")]
+    #[arg(short, long, help = "INFO tags to include", value_delimiter = ',')]
     info: Option<Vec<String>>,
-    #[arg(short, long, help = "FORMAT tags to include")]
+    #[arg(short, long, help = "FORMAT tags to include", value_delimiter = ',')]
     format: Option<Vec<String>>,
     #[arg(short = 'n', long, help = "Table name")]
     table_name: String,

@@ -13,7 +13,12 @@ pub struct RemoveNonStandardHeader {
     input: Option<String>,
     #[arg(short, long, help = "Output VCF")]
     output: Option<String>,
-    #[arg(short, long, help = "Add additional header line")]
+    #[arg(
+        short,
+        long,
+        help = "Add additional header line",
+        value_delimiter = ','
+    )]
     additional: Option<Vec<String>>,
 }
 

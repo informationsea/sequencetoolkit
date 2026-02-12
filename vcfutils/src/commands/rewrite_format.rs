@@ -11,9 +11,19 @@ pub struct RewriteFormat {
     input: Option<String>,
     #[arg(short, long, help = "Output VCF")]
     output: Option<String>,
-    #[arg(short, long, help = "Include list of format tags")]
+    #[arg(
+        short,
+        long,
+        help = "Include list of format tags (value delimiter: ',')",
+        value_delimiter = ','
+    )]
     format: Option<Vec<String>>,
-    #[arg(short, long, help = "Exclude list of format tags")]
+    #[arg(
+        short,
+        long,
+        help = "Exclude list of format tags (value delimiter: ',')",
+        value_delimiter = ','
+    )]
     exclude: Option<Vec<String>>,
 }
 
