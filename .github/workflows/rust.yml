@@ -23,10 +23,6 @@ jobs:
             target: aarch64-apple-darwin
             test: true
             cross: false
-          - runs-on: macos-latest
-            target: x86_64-apple-darwin
-            test: true
-            cross: false
           - runs-on: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             test: true
